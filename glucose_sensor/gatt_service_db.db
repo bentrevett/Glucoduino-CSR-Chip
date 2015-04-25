@@ -1,0 +1,35 @@
+/******************************************************************************
+ *  Copyright (C) Cambridge Silicon Radio Limited 2012-2013
+ *  Part of CSR uEnergy SDK 2.2.2
+ *  Application version 2.2.2.0
+ *
+ *  FILE
+ *      gatt_service_db.db
+ *
+ *  DESCRIPTION
+ *      This file defines the gatt Service in JSON format, which is fairly 
+ *      human readable.This file is included in the main application 
+ *      data base file which is used to produce 
+ *      ATT flat data base.
+ *
+ *  NOTES
+ *
+ ****************************************************************************/
+ #ifndef __GATT_SERVICE_DB__
+ #define __GATT_SERVICE_DB__
+/* For service details, refer http://developer.bluetooth.org/gatt/services/ 
+ * Pages/ServiceViewer.aspx?u=org.bluetooth.service.generic_access.xml 
+ */
+ 
+/*!< \brief Generic Attribute Service */
+#define UUID_GATT                                       0x1801  
+/* All the names will be used in corresponding generated handle names */
+
+primary_service {
+    uuid : UUID_GATT,
+    name : "GATT_SERVICE"
+    /* No characteristic supported for this service */
+},  /* This comma is required to be added only if there are more .db files 
+     * included after this file in app_gatt_db.db 
+     */
+#endif /* __GATT_SERVICE_DB__ */

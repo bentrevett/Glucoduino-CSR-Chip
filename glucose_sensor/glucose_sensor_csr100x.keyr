@@ -1,0 +1,67 @@
+>DECIMAL_CS_VERSION=66
+
+// (0001) - Bluetooth device address
+&BDADDR = 1510 5b00 0002
+
+// (0002) - Crystal frequency trim
+&CRYSTAL_FTRIM = 0020
+
+// A set of 8 unsigned interger keys are available to application for its use. 
+//
+// This application uses first CS key at index zero for PTS testing as given 
+// below:
+// Bit 0    : For PTS tests: TC_SPA_BV_01_C, TC_SPE_BI_07_C
+// Reference: Glucose service Test spec
+// Usage    : Set to 1 to enable boolean variable g_pts_abort_test 
+//            which will introduce one second gap between two glucose 
+//            measurement notifications. 
+//          : Set to 0 for normal use case.
+//
+//     
+// Bit 1    : For PTS tests: TC_CN_BV_06_C
+//            TC_CN_BV_07_C
+//            TC_CN_BV_08_C
+//            TC_CN_BV_09_C
+//            TC_CN_BV_10_C
+//            TC_CN_BV_13_C
+// Reference: Glucose Service Test spec
+// Usage    : Set to 1 to enable boolean variable
+//            g_pts_generate_context_every_record which will generate glucose 
+//            context information in every record.
+//            Set to 0 otherwise
+//
+&user_keys = 0000 0000 0000 0000 0000 0000 0000 0000
+
+
+// Depending upon the EEPROM/SPI size, an application can specify the memory
+// area to be used for NVM storage. The begining of EEPROM/SPI is occupied 
+// by the firmware/app. Space after this is available for the application to 
+// use for its NVM module. The following keys control this storage:
+//
+// nvm_start_address: The address at which the NVM storage starts, in bytes.
+//					  This value should be set based on the available
+//				      EEPROM/SPI memory.
+//                    For an EEPROM of size 512kbit, this default to 
+//					  0xf000 i.e. 480kbits = 60kbyte. .
+// nvm_size         : The size of the user NVM store in words. This value 
+//				      should be set based on the EEPRM/SPI memory.
+//					  If SPI is being used then nvm_size must be an integer
+//					  fraction of spi_flash_block size.
+//					  For an EEPROM of size 512kbit, this defaults to 
+//					  64 words i.e. 1kbit
+//
+// spi_flash_block_size          : The size in bytes of a SPI block. 
+//                                 Unused if I2C EEPROM.
+// nvm_spi_flash_number_of_blocks: The number of SPI blocks allocated to user 
+//                                 NVM. Unused if I2C EEPROM.
+//
+// So the following must hold true:
+// On SPI:
+//       nvm_start_address + (spi_flash_block_size * nvm_spi_flash_number_of_blocks) <= size of chip in bytes
+//       nvm_size must be an integer fraction of spi_flash_block_size
+// On EEPROM
+//       nvm_start_address + nvm_size <= size of chip in bytes.
+
+&nvm_start_address = f000 // Default value(in hex) for a 512kbit EEPROM
+&nvm_size = 40            // Default value(number of words in hex) for a 512kbit EEPROM
+

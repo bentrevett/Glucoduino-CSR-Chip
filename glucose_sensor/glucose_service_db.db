@@ -1,0 +1,92 @@
+/******************************************************************************
+ *  Copyright (C) Cambridge Silicon Radio Limited 2012-2013
+ *  Part of CSR uEnergy SDK 2.2.2
+ *  Application version 2.2.2.0
+ *
+ *  FILE
+ *      glucose_service_db.db
+ *
+ *  DESCRIPTION
+ *      This file defines the glucose Service in JSON format, which is fairly
+ *      human readable. This file is included in the main application
+ *      data base file which is used to produce ATT flat data base.
+ *
+ *
+ *  NOTES
+ *
+ ****************************************************************************/
+#ifndef __GLUCOSE_SERVICE_DB__
+#define __GLUCOSE_SERVICE_DB__
+#include "glucose_service_uuids.h"
+
+/* For service details, refer http://developer.bluetooth.org/gatt/services/ 
+ * Pages/ServiceViewer.aspx?u=org.bluetooth.service.generic_access.xml 
+ */
+ 
+
+/* All the names will be used in corresponding generated handle names */
+
+primary_service {
+    uuid : UUID_GLUCOSE_SERVICE,
+    name : "GLUCOSE_SERVICE",
+
+    /* Glucose measurement characteristic */
+    characteristic {
+        uuid : UUID_GLUCOSE_MEASUREMENT,
+        name : "GLUCOSE_MEASUREMENT",
+        properties : notify,        /*Characteristic can only be notified */
+        flags : [FLAG_IRQ],         /* IRQ char- handled by the application */
+        size_value : 0x11,
+
+        /* client configuration descriptor for glucose measurement 
+         * characteristic 
+         */
+        client_config {
+            /* IRQ characteristic - handled by the application */
+            flags : [FLAG_IRQ, FLAG_ENCR_R, FLAG_ENCR_W],		
+            name : "GLUCOSE_MEASUREMENT_CLIENT_CONFIG"
+        }
+    },
+
+    /* Glucose measurement context characteristic */
+    characteristic {
+        uuid : UUID_GLUCOSE_MEASUREMENT_CONTEXT,
+        name : "GLUCOSE_MEASUREMENT_CONTEXT",
+        properties : notify,        /* Can only be notified */
+        flags : [FLAG_IRQ],         /* IRQ char - handled by the application*/
+        size_value : 0x11,
+
+     /* client configuration descriptor of the glucose measurement context 
+      * characteristic 
+      */
+        client_config {
+            flags : [FLAG_IRQ, FLAG_ENCR_R, FLAG_ENCR_W],
+            name : "GLUCOSE_MEASUREMENT_CONTEXT_CLIENT_CONFIG"
+        }
+    },
+
+    /* Glucose feature characteristic */
+    characteristic {
+        uuid : UUID_GLUCOSE_FEATURE,
+        name : "GLUCOSE_FEATURE",
+        properties : read,           /* Can only be read */
+        flags : [FLAG_ENCR_R],
+        value :  GLUCOSE_FEATURE_VALUE
+    },
+
+    /* RACP characteristic */
+    characteristic {
+        uuid : UUID_RECORD_ACCESS_CONTROL_POINT,
+        name : "RECORD_ACCESS_CONTROL_POINT",
+        properties : [write, indicate], /* Can only be written or indicated */
+        flags : [FLAG_IRQ, FLAG_ENCR_W],
+        size_value : 0x11,
+
+        /* client configuration descriptor */
+        client_config {
+            flags : FLAG_IRQ,
+            name : "RACP_CLIENT_CONFIG"
+        }
+    }
+},
+#endif /* __GLUCOSE_SERVICE_DB__ */

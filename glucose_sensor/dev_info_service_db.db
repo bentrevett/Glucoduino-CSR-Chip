@@ -1,0 +1,109 @@
+/******************************************************************************
+ *  Copyright (C) Cambridge Silicon Radio Limited 2012-2013
+ *  Part of CSR uEnergy SDK 2.2.2
+ *  Application version 2.2.2.0
+ *
+ *  FILE
+ *      dev_info_service_db.db
+ *
+ *  DESCRIPTION
+ *      This file defines the device information Service in JSON format, 
+ *      which is fairly human readable.  
+ *      This file is included in the main application data base file which 
+ *      is used to produce ATT flat data base.
+ *
+ *
+ ****************************************************************************/
+#ifndef __DEV_INFO_SERVICE_DB__
+#define __DEV_INFO_SERVICE_DB__
+#include "dev_info_uuids.h"
+
+/* All the names will be used in corresponding generated handle names */
+
+primary_service {
+    uuid : UUID_DEVICE_INFO_SERVICE,
+    name : "DEVICE_INFO_SERVICE",   /* Name will be used in handle name */
+
+    /* Serial number characteristic of device info service */
+    characteristic {
+        uuid : UUID_DEVICE_INFO_SERIAL_NUMBER,
+        properties : read,          /* Characteristic can only be read */
+        flags : [FLAG_ENCR_R],
+        name : "DEVICE_INFO_SERIAL_NUMBER",
+        value : "BLE-GLUCOSE-001"
+       
+    },
+
+    /* Model number string characteristic of device info service */
+    characteristic {
+        uuid : UUID_DEVICE_INFO_MODEL_NUMBER,
+        properties : read,          /*Characteristic can only be read */
+        flags : [FLAG_ENCR_R],
+        name : "DEVICE_INFO_MODEL_NUMBER",
+        value : "BLE-GLUCOSE-MODEL-001"
+       
+    },
+
+    /* system Id characteristic of device info service */
+    characteristic {
+        uuid : UUID_DEVICE_INFO_SYSTEM_ID,
+        properties : read,          /*Characteristic can only be read */
+        flags : [FLAG_IRQ, FLAG_ENCR_R],
+        name : "DEVICE_INFO_SYSTEM_ID",
+        size_value : 0x8
+       
+    },
+
+    /* Hardware revision characteristic of device info service */
+    characteristic {
+        uuid : UUID_DEVICE_INFO_HARDWARE_REVISION,
+        properties : read,          /*Characteristic can only be read */
+        flags : [FLAG_ENCR_R],
+        name : "DEVICE_INFO_HARDWARE_REVISION",
+        value : HARDWARE_REVISION
+
+    },
+
+    /* Firmware revision characteristic */
+    characteristic {
+        uuid : UUID_DEVICE_INFO_FIRMWARE_REVISION,
+        properties : read,          /*Characteristic can only be read */
+        flags : [FLAG_ENCR_R],
+        name : "DEVICE_INFO_FIRMWARE_REVISION",
+        value : "CSR uEnergy SDK 2.2.2"
+
+    },
+
+    /* Software revision characteristic */
+    characteristic {
+        uuid : UUID_DEVICE_INFO_SOFTWARE_REVISION,
+        properties : read,          /*Characteristic can only be read */
+        flags : [FLAG_ENCR_R],
+        name : "DEVICE_INFO_SOFTWARE_REVISION",
+        value : "Application version 2.2.2.0"
+
+    },
+
+    /* Manufacturer name characteristic */
+    characteristic {
+        uuid : UUID_DEVICE_INFO_MANUFACTURER_NAME,
+        properties : read,          /*Characteristic can only be read */
+        flags : [FLAG_ENCR_R],
+        name : "DEVICE_INFO_MANUFACTURER_NAME",
+        value : "Cambridge Silicon Radio"
+    },
+
+    /* device info PNP id */
+    characteristic {
+        uuid : UUID_DEVICE_INFO_PNP_ID,
+        properties : read,          /*Characteristic can only be read */
+        flags : [FLAG_ENCR_R],
+        name : "DEVICE_INFO_END",
+        value : [VENDOR_ID_SRC_BT, VENDOR_ID,
+                 PRODUCT_ID,
+                 PRODUCT_VER]
+    }  
+},  /* This comma to be added only if there are more .db files included after
+     * this in app_gatt_db.db 
+     */
+#endif /* __DEV_INFO_SERVICE_DB__ */

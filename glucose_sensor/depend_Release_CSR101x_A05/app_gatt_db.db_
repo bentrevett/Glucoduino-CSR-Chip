@@ -1,0 +1,253 @@
+# 1 "app_gatt_db.db"
+# 1 "<built-in>"
+# 1 "<command-line>"
+# 1 "app_gatt_db.db"
+# 17 "app_gatt_db.db"
+# 1 "gap_service_db.db" 1
+# 19 "gap_service_db.db"
+# 1 "gap_uuids.h" 1
+# 20 "gap_service_db.db" 2
+# 1 "appearance.h" 1
+# 21 "gap_service_db.db" 2
+# 1 "gap_conn_params.h" 1
+# 22 "gap_service_db.db" 2
+
+
+
+
+
+primary_service {
+    uuid : 0x1800,
+    name : "GAP_SERVICE",
+
+
+
+
+
+
+    characteristic {
+        uuid : 0x2A00,
+        name : "DEVICE_NAME",
+        properties : [read, write],
+        flags : [FLAG_IRQ, FLAG_ENCR_W],
+
+
+
+
+        value : 0x0
+    },
+
+
+    characteristic {
+        uuid : 0x2A01,
+        name : "DEVICE_APPEARANCE",
+        properties : read,
+        value : 0x0400
+    },
+
+
+    characteristic {
+        uuid : 0x2A04,
+        properties : read,
+        value : [0x0190, 0x0190,
+                 0x0004, 0x03e8]
+    }
+},
+# 18 "app_gatt_db.db" 2
+# 1 "gatt_service_db.db" 1
+# 28 "gatt_service_db.db"
+primary_service {
+    uuid : 0x1801,
+    name : "GATT_SERVICE"
+
+},
+# 19 "app_gatt_db.db" 2
+# 1 "glucose_service_db.db" 1
+# 20 "glucose_service_db.db"
+# 1 "glucose_service_uuids.h" 1
+# 21 "glucose_service_db.db" 2
+# 29 "glucose_service_db.db"
+primary_service {
+    uuid : 0x1808,
+    name : "GLUCOSE_SERVICE",
+
+
+    characteristic {
+        uuid : 0x2A18,
+        name : "GLUCOSE_MEASUREMENT",
+        properties : notify,
+        flags : [FLAG_IRQ],
+        size_value : 0x11,
+
+
+
+
+        client_config {
+
+            flags : [FLAG_IRQ, FLAG_ENCR_R, FLAG_ENCR_W],
+            name : "GLUCOSE_MEASUREMENT_CLIENT_CONFIG"
+        }
+    },
+
+
+    characteristic {
+        uuid : 0x2A34,
+        name : "GLUCOSE_MEASUREMENT_CONTEXT",
+        properties : notify,
+        flags : [FLAG_IRQ],
+        size_value : 0x11,
+
+
+
+
+        client_config {
+            flags : [FLAG_IRQ, FLAG_ENCR_R, FLAG_ENCR_W],
+            name : "GLUCOSE_MEASUREMENT_CONTEXT_CLIENT_CONFIG"
+        }
+    },
+
+
+    characteristic {
+        uuid : 0x2A51,
+        name : "GLUCOSE_FEATURE",
+        properties : read,
+        flags : [FLAG_ENCR_R],
+        value : 0x03FF
+    },
+
+
+    characteristic {
+        uuid : 0x2A52,
+        name : "RECORD_ACCESS_CONTROL_POINT",
+        properties : [write, indicate],
+        flags : [FLAG_IRQ, FLAG_ENCR_W],
+        size_value : 0x11,
+
+
+        client_config {
+            flags : FLAG_IRQ,
+            name : "RACP_CLIENT_CONFIG"
+        }
+    }
+},
+# 20 "app_gatt_db.db" 2
+# 1 "dev_info_service_db.db" 1
+# 19 "dev_info_service_db.db"
+# 1 "dev_info_uuids.h" 1
+# 20 "dev_info_service_db.db" 2
+
+
+
+primary_service {
+    uuid : 0x180A,
+    name : "DEVICE_INFO_SERVICE",
+
+
+    characteristic {
+        uuid : 0x2A25,
+        properties : read,
+        flags : [FLAG_ENCR_R],
+        name : "DEVICE_INFO_SERIAL_NUMBER",
+        value : "BLE-GLUCOSE-001"
+
+    },
+
+
+    characteristic {
+        uuid : 0x2A24,
+        properties : read,
+        flags : [FLAG_ENCR_R],
+        name : "DEVICE_INFO_MODEL_NUMBER",
+        value : "BLE-GLUCOSE-MODEL-001"
+
+    },
+
+
+    characteristic {
+        uuid : 0x2A23,
+        properties : read,
+        flags : [FLAG_IRQ, FLAG_ENCR_R],
+        name : "DEVICE_INFO_SYSTEM_ID",
+        size_value : 0x8
+
+    },
+
+
+    characteristic {
+        uuid : 0x2A27,
+        properties : read,
+        flags : [FLAG_ENCR_R],
+        name : "DEVICE_INFO_HARDWARE_REVISION",
+        value : "CSR101x A05"
+
+    },
+
+
+    characteristic {
+        uuid : 0x2A26,
+        properties : read,
+        flags : [FLAG_ENCR_R],
+        name : "DEVICE_INFO_FIRMWARE_REVISION",
+        value : "CSR uEnergy SDK 2.2.2"
+
+    },
+
+
+    characteristic {
+        uuid : 0x2A28,
+        properties : read,
+        flags : [FLAG_ENCR_R],
+        name : "DEVICE_INFO_SOFTWARE_REVISION",
+        value : "Application version 2.2.2.0"
+
+    },
+
+
+    characteristic {
+        uuid : 0x2A29,
+        properties : read,
+        flags : [FLAG_ENCR_R],
+        name : "DEVICE_INFO_MANUFACTURER_NAME",
+        value : "Cambridge Silicon Radio"
+    },
+
+
+    characteristic {
+        uuid : 0x2A50,
+        properties : read,
+        flags : [FLAG_ENCR_R],
+        name : "DEVICE_INFO_END",
+        value : [0x01, 0x000A,
+                 0x014C,
+                 0x0100]
+    }
+},
+# 21 "app_gatt_db.db" 2
+# 1 "battery_service_db.db" 1
+# 17 "battery_service_db.db"
+# 1 "battery_uuids.h" 1
+# 18 "battery_service_db.db" 2
+
+
+
+
+
+primary_service {
+    uuid : 0x180f,
+    name : "BATTERY_SERVICE",
+# 34 "battery_service_db.db"
+    characteristic {
+        uuid : 0x2a19,
+        name : "BATT_LEVEL",
+        flags : [FLAG_IRQ, FLAG_ENCR_R],
+        properties : [read, notify],
+        value : 0x00,
+
+        client_config {
+            flags : [FLAG_IRQ, FLAG_ENCR_W],
+            name : "BATT_LEVEL_C_CFG"
+        }
+
+    }
+}
+# 22 "app_gatt_db.db" 2

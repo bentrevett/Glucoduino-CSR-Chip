@@ -1,0 +1,3010 @@
+   1                 		.file	"glucose_sensor_hw.c"
+   2                 		.variant xap2+
+   3                 	
+   4                 		.small
+   5                 	
+   6                 		.section	.debug_abbrev,"",@progbits
+   7                 	.Ldebug_abbrev0:
+   8                 		.section	.debug_info,"",@progbits
+   9                 	.Ldebug_info0:
+  10                 		.section	.debug_line,"",@progbits
+  11                 	.Ldebug_line0:
+  12 0000 00 00 00 00 		.text
+  12      00 02 00 00 
+  12      00 00 01 01 
+  12      FB 0E 0D 00 
+  12      01 01 01 01 
+  13                 	.Ltext0:
+  14                 		.section	.text.SetIndication,"ax",@progbits
+  15                 		.global	SetIndication
+  16                 		.type	SetIndication, @function
+  17                 	SetIndication:
+  18                 	.LFB7:
+  19                 		.file 1 "glucose_sensor_hw.c"
+   0:glucose_sensor_hw.c **** /******************************************************************************
+   1:glucose_sensor_hw.c ****  *  Copyright (C) Cambridge Silicon Radio Limited 2012-2013
+   2:glucose_sensor_hw.c ****  *  Part of CSR uEnergy SDK 2.2.2
+   3:glucose_sensor_hw.c ****  *  Application version 2.2.2.0
+   4:glucose_sensor_hw.c ****  *
+   5:glucose_sensor_hw.c ****  *  FILE
+   6:glucose_sensor_hw.c ****  *      glucose_sensor_hw.c
+   7:glucose_sensor_hw.c ****  *
+   8:glucose_sensor_hw.c ****  *  DESCRIPTION
+   9:glucose_sensor_hw.c ****  *      This file defines all the function which interact with hardware
+  10:glucose_sensor_hw.c ****  *
+  11:glucose_sensor_hw.c ****  *  NOTES
+  12:glucose_sensor_hw.c ****  *
+  13:glucose_sensor_hw.c ****  ******************************************************************************/
+  14:glucose_sensor_hw.c **** 
+  15:glucose_sensor_hw.c **** /*============================================================================*
+  16:glucose_sensor_hw.c ****  *  SDK Header Files
+  17:glucose_sensor_hw.c ****  *============================================================================*/
+  18:glucose_sensor_hw.c **** #include <main.h>
+  19:glucose_sensor_hw.c **** #include <pio_ctrlr.h>
+  20:glucose_sensor_hw.c **** #include <pio.h>
+  21:glucose_sensor_hw.c **** #include <timer.h>
+  22:glucose_sensor_hw.c **** 
+  23:glucose_sensor_hw.c **** 
+  24:glucose_sensor_hw.c **** /*============================================================================*
+  25:glucose_sensor_hw.c ****  *  Local Header File
+  26:glucose_sensor_hw.c ****  *============================================================================*/
+  27:glucose_sensor_hw.c **** #include "glucose_sensor_hw.h"
+  28:glucose_sensor_hw.c **** #include "glucose_sensor.h"
+  29:glucose_sensor_hw.c **** #include "glucose_sensor_gatt.h"
+  30:glucose_sensor_hw.c **** 
+  31:glucose_sensor_hw.c **** /*============================================================================*
+  32:glucose_sensor_hw.c ****  *  Private Data
+  33:glucose_sensor_hw.c ****  *============================================================================*/
+  34:glucose_sensor_hw.c **** /* Glucose Sensor application hardware data structure */
+  35:glucose_sensor_hw.c **** APP_HW_DATA_T g_app_hw_data;
+  36:glucose_sensor_hw.c **** 
+  37:glucose_sensor_hw.c **** 
+  38:glucose_sensor_hw.c **** /*============================================================================*
+  39:glucose_sensor_hw.c ****  *  Private Function Prototypes
+  40:glucose_sensor_hw.c ****  *============================================================================*/
+  41:glucose_sensor_hw.c **** 
+  42:glucose_sensor_hw.c **** #ifdef ENABLE_BUZZER
+  43:glucose_sensor_hw.c **** /* This function handles the buzzer timer expiry. */
+  44:glucose_sensor_hw.c **** static void appBuzzerTimerHandler(timer_id tid);
+  45:glucose_sensor_hw.c **** #endif /* ENABLE_BUZZER*/
+  46:glucose_sensor_hw.c **** 
+  47:glucose_sensor_hw.c **** /*============================================================================*
+  48:glucose_sensor_hw.c ****  *  Private Function Implementations
+  49:glucose_sensor_hw.c ****  *============================================================================*/
+  50:glucose_sensor_hw.c **** 
+  51:glucose_sensor_hw.c **** #ifdef ENABLE_BUZZER
+  52:glucose_sensor_hw.c **** 
+  53:glucose_sensor_hw.c **** /*----------------------------------------------------------------------------*
+  54:glucose_sensor_hw.c ****  *  NAME
+  55:glucose_sensor_hw.c ****  *      appBuzzerTimerHandler
+  56:glucose_sensor_hw.c ****  *
+  57:glucose_sensor_hw.c ****  *  DESCRIPTION
+  58:glucose_sensor_hw.c ****  *      This function is used to stop the Buzzer at the expiry of 
+  59:glucose_sensor_hw.c ****  *      timer.
+  60:glucose_sensor_hw.c ****  *
+  61:glucose_sensor_hw.c ****  *  RETURNS/MODIFIES
+  62:glucose_sensor_hw.c ****  *      Nothing.
+  63:glucose_sensor_hw.c ****  *
+  64:glucose_sensor_hw.c ****  *----------------------------------------------------------------------------*/
+  65:glucose_sensor_hw.c **** static void appBuzzerTimerHandler(timer_id tid)
+  66:glucose_sensor_hw.c **** {
+  67:glucose_sensor_hw.c ****     uint32 beep_timer = SHORT_BEEP_TIMER_VALUE;
+  68:glucose_sensor_hw.c **** 
+  69:glucose_sensor_hw.c ****     g_app_hw_data.buzzer_tid = TIMER_INVALID;
+  70:glucose_sensor_hw.c **** 
+  71:glucose_sensor_hw.c ****     switch(g_app_hw_data.beep_type)
+  72:glucose_sensor_hw.c ****     {
+  73:glucose_sensor_hw.c ****         case beep_short: /* FALLTHROUGH */
+  74:glucose_sensor_hw.c ****         case beep_long:
+  75:glucose_sensor_hw.c ****         {
+  76:glucose_sensor_hw.c ****             g_app_hw_data.beep_type = beep_off;
+  77:glucose_sensor_hw.c **** 
+  78:glucose_sensor_hw.c ****             /* Disable buzzer */
+  79:glucose_sensor_hw.c ****             PioEnablePWM(BUZZER_PWM_INDEX_0, FALSE);
+  80:glucose_sensor_hw.c ****         }
+  81:glucose_sensor_hw.c ****         break;
+  82:glucose_sensor_hw.c ****         case beep_twice:
+  83:glucose_sensor_hw.c ****         {
+  84:glucose_sensor_hw.c ****             if(g_app_hw_data.beep_count == 0)
+  85:glucose_sensor_hw.c ****             {
+  86:glucose_sensor_hw.c ****                 /* First beep sounded. Start the silent gap*/
+  87:glucose_sensor_hw.c ****                 g_app_hw_data.beep_count = 1;
+  88:glucose_sensor_hw.c **** 
+  89:glucose_sensor_hw.c ****                 /* Disable buzzer */
+  90:glucose_sensor_hw.c ****                 PioEnablePWM(BUZZER_PWM_INDEX_0, FALSE);
+  91:glucose_sensor_hw.c **** 
+  92:glucose_sensor_hw.c ****                 /* Time gap between two beeps */
+  93:glucose_sensor_hw.c ****                 beep_timer = BEEP_GAP_TIMER_VALUE;
+  94:glucose_sensor_hw.c ****             }
+  95:glucose_sensor_hw.c ****             else if(g_app_hw_data.beep_count == 1)
+  96:glucose_sensor_hw.c ****             {
+  97:glucose_sensor_hw.c ****                 g_app_hw_data.beep_count = 2;
+  98:glucose_sensor_hw.c **** 
+  99:glucose_sensor_hw.c ****                 /* Enable buzzer */
+ 100:glucose_sensor_hw.c ****                 PioEnablePWM(BUZZER_PWM_INDEX_0, TRUE);
+ 101:glucose_sensor_hw.c **** 
+ 102:glucose_sensor_hw.c ****                 /* Start beep */
+ 103:glucose_sensor_hw.c ****                 beep_timer = SHORT_BEEP_TIMER_VALUE;
+ 104:glucose_sensor_hw.c ****             }
+ 105:glucose_sensor_hw.c ****             else
+ 106:glucose_sensor_hw.c ****             {
+ 107:glucose_sensor_hw.c ****                 /* Two beeps have been sounded. Stop buzzer now*/
+ 108:glucose_sensor_hw.c ****                 g_app_hw_data.beep_count = 0;
+ 109:glucose_sensor_hw.c **** 
+ 110:glucose_sensor_hw.c ****                 /* Disable buzzer */
+ 111:glucose_sensor_hw.c ****                 PioEnablePWM(BUZZER_PWM_INDEX_0, FALSE);
+ 112:glucose_sensor_hw.c **** 
+ 113:glucose_sensor_hw.c ****                 g_app_hw_data.beep_type = beep_off;
+ 114:glucose_sensor_hw.c ****             }
+ 115:glucose_sensor_hw.c ****         }
+ 116:glucose_sensor_hw.c ****         break;
+ 117:glucose_sensor_hw.c ****         case beep_thrice:
+ 118:glucose_sensor_hw.c ****         {
+ 119:glucose_sensor_hw.c ****             if(g_app_hw_data.beep_count == 0 ||
+ 120:glucose_sensor_hw.c ****                g_app_hw_data.beep_count == 2)
+ 121:glucose_sensor_hw.c ****             {
+ 122:glucose_sensor_hw.c ****                 /* First beep sounded. Start the silent gap*/
+ 123:glucose_sensor_hw.c ****                 g_app_hw_data.beep_count++;
+ 124:glucose_sensor_hw.c **** 
+ 125:glucose_sensor_hw.c ****                 /* Disable buzzer */
+ 126:glucose_sensor_hw.c ****                 PioEnablePWM(BUZZER_PWM_INDEX_0, FALSE);
+ 127:glucose_sensor_hw.c **** 
+ 128:glucose_sensor_hw.c ****                 /* Time gap between two beeps */
+ 129:glucose_sensor_hw.c ****                 beep_timer = BEEP_GAP_TIMER_VALUE;
+ 130:glucose_sensor_hw.c ****             }
+ 131:glucose_sensor_hw.c ****             else if(g_app_hw_data.beep_count == 1 ||
+ 132:glucose_sensor_hw.c ****                     g_app_hw_data.beep_count == 3)
+ 133:glucose_sensor_hw.c ****             {
+ 134:glucose_sensor_hw.c ****                 g_app_hw_data.beep_count++;
+ 135:glucose_sensor_hw.c **** 
+ 136:glucose_sensor_hw.c ****                 /* Enable buzzer */
+ 137:glucose_sensor_hw.c ****                 PioEnablePWM(BUZZER_PWM_INDEX_0, TRUE);
+ 138:glucose_sensor_hw.c **** 
+ 139:glucose_sensor_hw.c ****                 beep_timer = SHORT_BEEP_TIMER_VALUE;
+ 140:glucose_sensor_hw.c ****             }
+ 141:glucose_sensor_hw.c ****             else
+ 142:glucose_sensor_hw.c ****             {
+ 143:glucose_sensor_hw.c ****                 /* Two beeps have been sounded. Stop buzzer now*/
+ 144:glucose_sensor_hw.c ****                 g_app_hw_data.beep_count = 0;
+ 145:glucose_sensor_hw.c **** 
+ 146:glucose_sensor_hw.c ****                 /* Disable buzzer */
+ 147:glucose_sensor_hw.c ****                 PioEnablePWM(BUZZER_PWM_INDEX_0, FALSE);
+ 148:glucose_sensor_hw.c **** 
+ 149:glucose_sensor_hw.c ****                 g_app_hw_data.beep_type = beep_off;
+ 150:glucose_sensor_hw.c ****             }
+ 151:glucose_sensor_hw.c ****         }
+ 152:glucose_sensor_hw.c ****         break;
+ 153:glucose_sensor_hw.c ****         default:
+ 154:glucose_sensor_hw.c ****         {
+ 155:glucose_sensor_hw.c ****             /* No such beep type */
+ 156:glucose_sensor_hw.c ****             ReportPanic(app_panic_unexpected_beep_type);
+ 157:glucose_sensor_hw.c ****             /* Though break statement will not be executed after panic but this
+ 158:glucose_sensor_hw.c ****              * has been kept to avoid any confusion for default case.
+ 159:glucose_sensor_hw.c ****              */
+ 160:glucose_sensor_hw.c ****         }
+ 161:glucose_sensor_hw.c ****         break;
+ 162:glucose_sensor_hw.c ****     }
+ 163:glucose_sensor_hw.c **** 
+ 164:glucose_sensor_hw.c ****     if(g_app_hw_data.beep_type != beep_off)
+ 165:glucose_sensor_hw.c ****     {
+ 166:glucose_sensor_hw.c ****         /* start the timer */
+ 167:glucose_sensor_hw.c ****         g_app_hw_data.buzzer_tid = TimerCreate(beep_timer, TRUE, 
+ 168:glucose_sensor_hw.c ****                                                appBuzzerTimerHandler);
+ 169:glucose_sensor_hw.c ****     }
+ 170:glucose_sensor_hw.c **** }
+ 171:glucose_sensor_hw.c **** 
+ 172:glucose_sensor_hw.c **** #endif /* ENABLE_BUZZER*/
+ 173:glucose_sensor_hw.c **** 
+ 174:glucose_sensor_hw.c **** 
+ 175:glucose_sensor_hw.c **** /*============================================================================*
+ 176:glucose_sensor_hw.c ****  *  Public Function Implementations
+ 177:glucose_sensor_hw.c ****  *============================================================================*/
+ 178:glucose_sensor_hw.c **** 
+ 179:glucose_sensor_hw.c **** 
+ 180:glucose_sensor_hw.c **** 
+ 181:glucose_sensor_hw.c **** /*----------------------------------------------------------------------------*
+ 182:glucose_sensor_hw.c ****  *  NAME
+ 183:glucose_sensor_hw.c ****  *      SoundBuzzer
+ 184:glucose_sensor_hw.c ****  *
+ 185:glucose_sensor_hw.c ****  *  DESCRIPTION
+ 186:glucose_sensor_hw.c ****  *      Function for sounding beeps.
+ 187:glucose_sensor_hw.c ****  *
+ 188:glucose_sensor_hw.c ****  *  RETURNS/MODIFIES
+ 189:glucose_sensor_hw.c ****  *      Nothing.
+ 190:glucose_sensor_hw.c ****  *
+ 191:glucose_sensor_hw.c ****  *----------------------------------------------------------------------------*/
+ 192:glucose_sensor_hw.c **** extern void SoundBuzzer(buzzer_beep_type beep_type)
+ 193:glucose_sensor_hw.c **** {
+ 194:glucose_sensor_hw.c **** #ifdef ENABLE_BUZZER
+ 195:glucose_sensor_hw.c ****     uint32 beep_timer = SHORT_BEEP_TIMER_VALUE;
+ 196:glucose_sensor_hw.c **** 
+ 197:glucose_sensor_hw.c ****     PioEnablePWM(BUZZER_PWM_INDEX_0, FALSE);
+ 198:glucose_sensor_hw.c ****     TimerDelete(g_app_hw_data.buzzer_tid);
+ 199:glucose_sensor_hw.c ****     g_app_hw_data.buzzer_tid = TIMER_INVALID;
+ 200:glucose_sensor_hw.c ****     g_app_hw_data.beep_count = 0;
+ 201:glucose_sensor_hw.c **** 
+ 202:glucose_sensor_hw.c ****     /* Store the beep type in some global variable. It will used on timer expiry
+ 203:glucose_sensor_hw.c ****      * to check the type of beeps being sounded.
+ 204:glucose_sensor_hw.c ****      */
+ 205:glucose_sensor_hw.c ****     g_app_hw_data.beep_type = beep_type;
+ 206:glucose_sensor_hw.c **** 
+ 207:glucose_sensor_hw.c ****     switch(g_app_hw_data.beep_type)
+ 208:glucose_sensor_hw.c ****     {
+ 209:glucose_sensor_hw.c ****         case beep_off:
+ 210:glucose_sensor_hw.c ****         {
+ 211:glucose_sensor_hw.c ****             /* Don't do anything */
+ 212:glucose_sensor_hw.c ****         }
+ 213:glucose_sensor_hw.c ****         break;
+ 214:glucose_sensor_hw.c **** 
+ 215:glucose_sensor_hw.c ****         case beep_short:
+ 216:glucose_sensor_hw.c ****             /* FALLTHROUGH */
+ 217:glucose_sensor_hw.c ****         case beep_twice: /* Two short beeps will be sounded */
+ 218:glucose_sensor_hw.c ****             /* FALLTHROUGH */
+ 219:glucose_sensor_hw.c ****         case beep_thrice: /* Three short beeps will be sounded */
+ 220:glucose_sensor_hw.c ****         {
+ 221:glucose_sensor_hw.c ****             /* One short beep will be sounded */
+ 222:glucose_sensor_hw.c ****             beep_timer = SHORT_BEEP_TIMER_VALUE;
+ 223:glucose_sensor_hw.c ****         }
+ 224:glucose_sensor_hw.c ****         break;
+ 225:glucose_sensor_hw.c **** 
+ 226:glucose_sensor_hw.c ****         case beep_long:
+ 227:glucose_sensor_hw.c ****         {
+ 228:glucose_sensor_hw.c ****             /* One long beep will be sounded */
+ 229:glucose_sensor_hw.c ****             beep_timer = LONG_BEEP_TIMER_VALUE;
+ 230:glucose_sensor_hw.c ****         }
+ 231:glucose_sensor_hw.c ****         break;
+ 232:glucose_sensor_hw.c **** 
+ 233:glucose_sensor_hw.c ****         default:
+ 234:glucose_sensor_hw.c ****         {
+ 235:glucose_sensor_hw.c ****             /* No such beep type defined */
+ 236:glucose_sensor_hw.c ****             ReportPanic(app_panic_unexpected_beep_type);
+ 237:glucose_sensor_hw.c ****             /* Though break statement will not be executed after panic but this
+ 238:glucose_sensor_hw.c ****              * has been kept to avoid any confusion for default case.
+ 239:glucose_sensor_hw.c ****              */
+ 240:glucose_sensor_hw.c ****         }
+ 241:glucose_sensor_hw.c ****         break;
+ 242:glucose_sensor_hw.c ****     }
+ 243:glucose_sensor_hw.c **** 
+ 244:glucose_sensor_hw.c ****     if(g_app_hw_data.beep_type != beep_off)
+ 245:glucose_sensor_hw.c ****     {
+ 246:glucose_sensor_hw.c ****         /* Initialize beep count to zero */
+ 247:glucose_sensor_hw.c ****         g_app_hw_data.beep_count = 0;
+ 248:glucose_sensor_hw.c **** 
+ 249:glucose_sensor_hw.c ****         /* Enable buzzer */
+ 250:glucose_sensor_hw.c ****         PioEnablePWM(BUZZER_PWM_INDEX_0, TRUE);
+ 251:glucose_sensor_hw.c **** 
+ 252:glucose_sensor_hw.c ****         TimerDelete(g_app_hw_data.buzzer_tid);
+ 253:glucose_sensor_hw.c ****         g_app_hw_data.buzzer_tid = TimerCreate(beep_timer, TRUE, 
+ 254:glucose_sensor_hw.c ****                                                appBuzzerTimerHandler);
+ 255:glucose_sensor_hw.c ****     }
+ 256:glucose_sensor_hw.c **** #endif /* ENABLE_BUZZER */
+ 257:glucose_sensor_hw.c **** }
+ 258:glucose_sensor_hw.c **** 
+ 259:glucose_sensor_hw.c **** /*----------------------------------------------------------------------------*
+ 260:glucose_sensor_hw.c ****  *  NAME
+ 261:glucose_sensor_hw.c ****  *      InitGSHardware  -  intialise app hardware
+ 262:glucose_sensor_hw.c ****  *
+ 263:glucose_sensor_hw.c ****  *  DESCRIPTION
+ 264:glucose_sensor_hw.c ****  *      This function is called upon a power reset to initialize the PIOs
+ 265:glucose_sensor_hw.c ****  *      and configure their initial states.
+ 266:glucose_sensor_hw.c ****  *
+ 267:glucose_sensor_hw.c ****  *  RETURNS/MODIFIES
+ 268:glucose_sensor_hw.c ****  *      Nothing.
+ 269:glucose_sensor_hw.c ****  *
+ 270:glucose_sensor_hw.c ****  *----------------------------------------------------------------------------*/
+ 271:glucose_sensor_hw.c **** extern void InitGSHardware(void)
+ 272:glucose_sensor_hw.c **** {
+ 273:glucose_sensor_hw.c ****     /* Don't wakeup on UART RX line */
+ 274:glucose_sensor_hw.c ****     SleepWakeOnUartRX(TRUE);
+ 275:glucose_sensor_hw.c **** 
+ 276:glucose_sensor_hw.c ****     /* Setup PIOs
+ 277:glucose_sensor_hw.c ****      * PIO3 - Buzzer - BUZZER_PIO
+ 278:glucose_sensor_hw.c ****      * PIO4 - LED 1 - LED_PIO
+ 279:glucose_sensor_hw.c ****      * PIO11 - Button - BUTTON_PIO
+ 280:glucose_sensor_hw.c ****      */
+ 281:glucose_sensor_hw.c **** 
+ 282:glucose_sensor_hw.c ****     PioSetModes(PIO_BIT_MASK(BUTTON_PIO), pio_mode_user);
+ 283:glucose_sensor_hw.c ****     PioSetDir(BUTTON_PIO, PIO_DIRECTION_INPUT); /* input */
+ 284:glucose_sensor_hw.c ****     PioSetPullModes(PIO_BIT_MASK(BUTTON_PIO), pio_mode_strong_pull_up); 
+ 285:glucose_sensor_hw.c ****     /* Setup button on PIO11 */
+ 286:glucose_sensor_hw.c ****     PioSetEventMask(PIO_BIT_MASK(BUTTON_PIO), pio_event_mode_both);
+ 287:glucose_sensor_hw.c ****     
+ 288:glucose_sensor_hw.c **** #ifdef ENABLE_BUZZER
+ 289:glucose_sensor_hw.c ****     PioSetModes(PIO_BIT_MASK(BUZZER_PIO), pio_mode_pwm0);
+ 290:glucose_sensor_hw.c **** #endif /* ENABLE_BUZZER */
+ 291:glucose_sensor_hw.c **** 
+ 292:glucose_sensor_hw.c **** 
+ 293:glucose_sensor_hw.c **** #ifdef ENABLE_LEDBLINK
+ 294:glucose_sensor_hw.c ****     /* PWM is being used for LED glowing.*/
+ 295:glucose_sensor_hw.c ****     PioSetModes(PIO_BIT_MASK(LED_PIO), pio_mode_pwm1);
+ 296:glucose_sensor_hw.c ****     PioSetDir(LED_PIO, PIO_DIRECTION_OUTPUT);   /* output */
+ 297:glucose_sensor_hw.c ****     PioSet(LED_PIO, FALSE);     /* set low */
+ 298:glucose_sensor_hw.c **** 
+ 299:glucose_sensor_hw.c ****     /* Advertising parameters are being configured for PWM right now. When
+ 300:glucose_sensor_hw.c ****      * application moves to connection state, we change PWM parameters to
+ 301:glucose_sensor_hw.c ****      * the ones for Connection
+ 302:glucose_sensor_hw.c ****      */
+ 303:glucose_sensor_hw.c ****     
+ 304:glucose_sensor_hw.c ****     PioConfigPWM(LED_PWM_INDEX_1, pio_pwm_mode_push_pull, DULL_LED_ON_TIME_ADV, 
+ 305:glucose_sensor_hw.c ****           DULL_LED_OFF_TIME_ADV, DULL_LED_HOLD_TIME_ADV, BRIGHT_LED_ON_TIME_ADV,
+ 306:glucose_sensor_hw.c ****           BRIGHT_LED_OFF_TIME_ADV, BRIGHT_LED_HOLD_TIME_ADV, LED_RAMP_RATE);
+ 307:glucose_sensor_hw.c **** 
+ 308:glucose_sensor_hw.c ****     PioEnablePWM(LED_PWM_INDEX_1, FALSE);
+ 309:glucose_sensor_hw.c **** #endif /* ENABLE_LEDBLINK */
+ 310:glucose_sensor_hw.c **** 
+ 311:glucose_sensor_hw.c **** 
+ 312:glucose_sensor_hw.c **** #ifdef ENABLE_BUZZER
+ 313:glucose_sensor_hw.c ****     /* Configure the buzzer on PIO3 */
+ 314:glucose_sensor_hw.c ****     PioConfigPWM(BUZZER_PWM_INDEX_0, pio_pwm_mode_push_pull, DULL_BUZZ_ON_TIME,
+ 315:glucose_sensor_hw.c ****                  DULL_BUZZ_OFF_TIME, DULL_BUZZ_HOLD_TIME, BRIGHT_BUZZ_ON_TIME,
+ 316:glucose_sensor_hw.c ****                  BRIGHT_BUZZ_OFF_TIME, BRIGHT_BUZZ_HOLD_TIME, BUZZ_RAMP_RATE);
+ 317:glucose_sensor_hw.c **** 
+ 318:glucose_sensor_hw.c **** 
+ 319:glucose_sensor_hw.c ****     PioEnablePWM(BUZZER_PWM_INDEX_0, FALSE);
+ 320:glucose_sensor_hw.c **** #endif /* ENABLE_BUZZER */
+ 321:glucose_sensor_hw.c **** 
+ 322:glucose_sensor_hw.c ****     /* Change the I2C pull mode to pull down*/
+ 323:glucose_sensor_hw.c ****     PioSetI2CPullMode(pio_i2c_pull_mode_strong_pull_down);
+ 324:glucose_sensor_hw.c **** }
+ 325:glucose_sensor_hw.c **** 
+ 326:glucose_sensor_hw.c **** /*----------------------------------------------------------------------------*
+ 327:glucose_sensor_hw.c ****  *  NAME
+ 328:glucose_sensor_hw.c ****  *      FormulateNAddGlucoseMeasData
+ 329:glucose_sensor_hw.c ****  *
+ 330:glucose_sensor_hw.c ****  *  DESCRIPTION
+ 331:glucose_sensor_hw.c ****  *      This function formulates and adds Glucose measurement data to the
+ 332:glucose_sensor_hw.c ****  *      glucose measurement queue.
+ 333:glucose_sensor_hw.c ****  *
+ 334:glucose_sensor_hw.c ****  *  RETURNS/MODIFIES
+ 335:glucose_sensor_hw.c ****  *      Nothing.
+ 336:glucose_sensor_hw.c ****  *
+ 337:glucose_sensor_hw.c ****  *----------------------------------------------------------------------------*/
+ 338:glucose_sensor_hw.c **** extern void FormulateNAddGlucoseMeasData(uint8 num)
+ 339:glucose_sensor_hw.c **** {
+ 340:glucose_sensor_hw.c ****     uint8 mFlag = 0;
+ 341:glucose_sensor_hw.c ****     uint8 cFlag = 0;
+ 342:glucose_sensor_hw.c ****     uint8 mData[MAX_LEN_MEAS_OPTIONAL_FIELDS];
+ 343:glucose_sensor_hw.c ****     uint8 cData[MAX_LEN_CONTEXT_OPTIONAL_FIELDS];
+ 344:glucose_sensor_hw.c ****     uint16 mLen = 0;
+ 345:glucose_sensor_hw.c ****     uint16 cLen = 0;
+ 346:glucose_sensor_hw.c ****     uint16 random_val = 0;
+ 347:glucose_sensor_hw.c **** 
+ 348:glucose_sensor_hw.c ****     /* Fill glucose measurement data */
+ 349:glucose_sensor_hw.c ****     mFlag = TIME_OFFSET_PRESENT |
+ 350:glucose_sensor_hw.c ****             GLUCOSE_CONC_UNIT_MMOL_PER_LITRE|
+ 351:glucose_sensor_hw.c ****             GLUCOSE_CONC_TYPE_SAMPLE_LOCATION_PRESENT |
+ 352:glucose_sensor_hw.c ****             SENSOR_STATUS_ANNUNCIATION_PRESENT; /* Unit - mg/dl */
+ 353:glucose_sensor_hw.c **** 
+ 354:glucose_sensor_hw.c ****     /* Add time offset */
+ 355:glucose_sensor_hw.c ****     mData[mLen ++] = LE8_L(255);
+ 356:glucose_sensor_hw.c ****     mData[mLen ++] = LE8_H(255);
+ 357:glucose_sensor_hw.c **** 
+ 358:glucose_sensor_hw.c ****     /* Glucose concentration - two Octets - bit 2 of flag tells the unit of
+ 359:glucose_sensor_hw.c ****      * glucose concentration. If bit2 is set, It means units will be mol/L and
+ 360:glucose_sensor_hw.c ****      * if bit2 is not set units will be in Kg/L
+ 361:glucose_sensor_hw.c ****      */
+ 362:glucose_sensor_hw.c ****     random_val = (TimeGet16() % 29) + GLUCOSE_MEAS_FASTING_NORMAL_MIN;
+ 363:glucose_sensor_hw.c **** 
+ 364:glucose_sensor_hw.c ****     /* We are setting glucose concentation in [70-99]mg/dl range.
+ 365:glucose_sensor_hw.c ****      * Since glucose concentration uses SFLOAT format, So exponent here will
+ 366:glucose_sensor_hw.c ****      * be -5 (calculated by converting Kg/L to mg/dl.
+ 367:glucose_sensor_hw.c ****      */
+ 368:glucose_sensor_hw.c ****     random_val |= 0xb000; /* Signed -5 = 0xb(2's complement), exponent gives the
+ 369:glucose_sensor_hw.c ****                            * 4 MSBs of concentration.
+ 370:glucose_sensor_hw.c ****                            */
+ 371:glucose_sensor_hw.c **** 
+ 372:glucose_sensor_hw.c ****     mData[mLen ++] = LE8_L(random_val);
+ 373:glucose_sensor_hw.c ****     mData[mLen ++] = LE8_H(random_val);
+ 374:glucose_sensor_hw.c **** 
+ 375:glucose_sensor_hw.c ****     /* Type - sample location - one octet */
+ 376:glucose_sensor_hw.c ****     mData[mLen ++] = TYPE_CAPILLARY_WHOLE_BLOOD | LOCATION_FINGER;
+ 377:glucose_sensor_hw.c **** 
+ 378:glucose_sensor_hw.c ****     /* Sensor Annunciation octet is normally set to Zero as there was no 
+ 379:glucose_sensor_hw.c ****      * irregularity while the reading was being taken but just to have better
+ 380:glucose_sensor_hw.c ****      * use case coverage, we are setting random error once in
+ 381:glucose_sensor_hw.c ****      * GLUCOSE_CONTEXT_REPEAT_CYCLE_LENGTH measurements.
+ 382:glucose_sensor_hw.c ****      */
+ 383:glucose_sensor_hw.c ****      if(num == 1)
+ 384:glucose_sensor_hw.c ****     {
+ 385:glucose_sensor_hw.c ****         uint8 random_error = TimeGet16() % 256;
+ 386:glucose_sensor_hw.c ****         mData[mLen ++] = LE8_L(random_error);
+ 387:glucose_sensor_hw.c ****     }
+ 388:glucose_sensor_hw.c ****     else
+ 389:glucose_sensor_hw.c ****     {
+ 390:glucose_sensor_hw.c ****         mData[mLen ++] = LE8_L(0);
+ 391:glucose_sensor_hw.c ****     }
+ 392:glucose_sensor_hw.c ****     mData[mLen ++] = LE8_H(0);
+ 393:glucose_sensor_hw.c **** 
+ 394:glucose_sensor_hw.c ****     /* If some PTS test case is running which requires glucose context to be in
+ 395:glucose_sensor_hw.c ****      * every record/last record/first record and project keyr file has been 
+ 396:glucose_sensor_hw.c ****      * configured accordingly, then following boolean variable will be TRUE and
+ 397:glucose_sensor_hw.c ****      * glucose context will be generated for every record.
+ 398:glucose_sensor_hw.c ****      * OR
+ 399:glucose_sensor_hw.c ****      * Add context information once in every 
+ 400:glucose_sensor_hw.c ****      * GLUCOSE_CONTEXT_REPEAT_CYCLE_LENGTH measurements.
+ 401:glucose_sensor_hw.c ****      */
+ 402:glucose_sensor_hw.c ****    /* if(g_pts_generate_context_every_record == TRUE || num == 2)*/
+ 403:glucose_sensor_hw.c ****     if(TRUE)
+ 404:glucose_sensor_hw.c ****     {
+ 405:glucose_sensor_hw.c ****         /* Fill glucose context information data */
+ 406:glucose_sensor_hw.c ****         mFlag |= CONTEXT_INFORMATION_PRESENT;
+ 407:glucose_sensor_hw.c **** 
+ 408:glucose_sensor_hw.c ****         cFlag = EXTENDED_FLAGS_PRESENT |
+ 409:glucose_sensor_hw.c ****                 CARBOHYDRATE_FIELD_PRESENT |
+ 410:glucose_sensor_hw.c ****                 MEAL_FIELD_PRESENT |
+ 411:glucose_sensor_hw.c ****                 TESTER_HEALTH_FIELD_PRESENT |
+ 412:glucose_sensor_hw.c ****                 EXERCISE_FIELD_PRESENT |
+ 413:glucose_sensor_hw.c ****                 MEDICATION_FIELD_PRESENT |
+ 414:glucose_sensor_hw.c ****                 MEDICATION_IN_MILLILITRES |
+ 415:glucose_sensor_hw.c ****                 HBA1C_FIELD_PRESENT;
+ 416:glucose_sensor_hw.c **** 
+ 417:glucose_sensor_hw.c ****         /* Extended flag */
+ 418:glucose_sensor_hw.c ****         cData[cLen ++] = 0;
+ 419:glucose_sensor_hw.c **** 
+ 420:glucose_sensor_hw.c ****         /* Carbohydrate Id */
+ 421:glucose_sensor_hw.c ****         cData[cLen ++] = BREAKFAST;
+ 422:glucose_sensor_hw.c ****         /* Carbohydrate value is being randomly chosen in range [0-99]grams
+ 423:glucose_sensor_hw.c ****          * Default unit of carbohydrate value is Kg. This range has been chosen
+ 424:glucose_sensor_hw.c ****          * keeping PTS testcases in mind.
+ 425:glucose_sensor_hw.c ****          */
+ 426:glucose_sensor_hw.c ****         random_val = (TimeGet16() % 99);
+ 427:glucose_sensor_hw.c ****         /* To convert Kg into grams, exponent will be -3.*/
+ 428:glucose_sensor_hw.c ****         random_val |= 0xd000; /* Signed -3 = 0xd(2's complement), exponent gives
+ 429:glucose_sensor_hw.c ****                                * the 4 MSBs of concentration.
+ 430:glucose_sensor_hw.c ****                                */
+ 431:glucose_sensor_hw.c **** 
+ 432:glucose_sensor_hw.c ****         cData[cLen ++] = LE8_L(random_val); /* Range - 0 to 2000 */
+ 433:glucose_sensor_hw.c ****         cData[cLen ++] = LE8_H(random_val);
+ 434:glucose_sensor_hw.c **** 
+ 435:glucose_sensor_hw.c ****         /* Meal field */
+ 436:glucose_sensor_hw.c ****         cData[cLen ++] = AFTER_MEAL;
+ 437:glucose_sensor_hw.c **** 
+ 438:glucose_sensor_hw.c ****         /* Tester health field */
+ 439:glucose_sensor_hw.c ****         cData[cLen ++] = SELF | NO_HEALTH_ISSUES;
+ 440:glucose_sensor_hw.c **** 
+ 441:glucose_sensor_hw.c ****         /* Excercise duration and intensity */
+ 442:glucose_sensor_hw.c ****         cData[cLen ++] = LE8_L(3600); /* In seconds - 1 Hour */
+ 443:glucose_sensor_hw.c ****         cData[cLen ++] = LE8_H(3600);
+ 444:glucose_sensor_hw.c ****         cData[cLen ++] = 40; /* Intensity - 0 to 100 %*/
+ 445:glucose_sensor_hw.c **** 
+ 446:glucose_sensor_hw.c ****         /* Medication value is being randomly chosen in range [0-99]
+ 447:glucose_sensor_hw.c ****          * millilitres. This range has been chosen
+ 448:glucose_sensor_hw.c ****          * keeping PTS testcases in mind.
+ 449:glucose_sensor_hw.c ****          */
+ 450:glucose_sensor_hw.c ****         random_val = (TimeGet16() % 99);
+ 451:glucose_sensor_hw.c ****         /* To convert L into ml , exponent will be -3.*/
+ 452:glucose_sensor_hw.c ****         random_val |= 0xd000; /* Signed -3 = 0xd(2's complement), exponent
+ 453:glucose_sensor_hw.c ****                                *  gives the 4 MSBs of concentration.
+ 454:glucose_sensor_hw.c ****                                */
+ 455:glucose_sensor_hw.c **** 
+ 456:glucose_sensor_hw.c ****         /* Medication Id */
+ 457:glucose_sensor_hw.c ****         cData[cLen ++] = SHORT_ACTING_INSULIN;
+ 458:glucose_sensor_hw.c ****         cData[cLen ++] = LE8_L(random_val); /* Range - 0 to 2000 mg/ml */
+ 459:glucose_sensor_hw.c ****         cData[cLen ++] = LE8_H(random_val);
+ 460:glucose_sensor_hw.c **** 
+ 461:glucose_sensor_hw.c ****         /* HbA1c */
+ 462:glucose_sensor_hw.c ****         cData[cLen ++] = LE8_L(10); /* Range - 0 to 100 % */
+ 463:glucose_sensor_hw.c ****         cData[cLen ++] = LE8_H(10);
+ 464:glucose_sensor_hw.c ****     }
+ 465:glucose_sensor_hw.c **** 
+ 466:glucose_sensor_hw.c ****   /*  AddGlucoseMeasurementToQueue(mFlag, mData, mLen,
+ 467:glucose_sensor_hw.c ****                                  cFlag, cData, cLen);*/
+ 468:glucose_sensor_hw.c **** }
+ 469:glucose_sensor_hw.c **** 
+ 470:glucose_sensor_hw.c **** 
+ 471:glucose_sensor_hw.c **** 
+ 472:glucose_sensor_hw.c **** /*----------------------------------------------------------------------------*
+ 473:glucose_sensor_hw.c ****  *  NAME
+ 474:glucose_sensor_hw.c ****  *      AppHwDataInit
+ 475:glucose_sensor_hw.c ****  *
+ 476:glucose_sensor_hw.c ****  *  DESCRIPTION
+ 477:glucose_sensor_hw.c ****  *      This function initializes the application hardware data
+ 478:glucose_sensor_hw.c ****  *
+ 479:glucose_sensor_hw.c ****  *  RETURNS/MODIFIES
+ 480:glucose_sensor_hw.c ****  *      Nothing.
+ 481:glucose_sensor_hw.c ****  *
+ 482:glucose_sensor_hw.c ****  *----------------------------------------------------------------------------*/
+ 483:glucose_sensor_hw.c **** extern void AppHwDataInit(void)
+ 484:glucose_sensor_hw.c **** {
+ 485:glucose_sensor_hw.c ****     /* Delete the button press timer. */
+ 486:glucose_sensor_hw.c ****     TimerDelete(g_app_hw_data.button_press_tid);
+ 487:glucose_sensor_hw.c ****     g_app_hw_data.button_press_tid = TIMER_INVALID;
+ 488:glucose_sensor_hw.c **** 
+ 489:glucose_sensor_hw.c ****     SetIndication(stop_ind);
+ 490:glucose_sensor_hw.c **** }
+ 491:glucose_sensor_hw.c **** 
+ 492:glucose_sensor_hw.c **** 
+ 493:glucose_sensor_hw.c **** 
+ 494:glucose_sensor_hw.c **** /*----------------------------------------------------------------------------*
+ 495:glucose_sensor_hw.c ****  *  NAME
+ 496:glucose_sensor_hw.c ****  *      SetIndication
+ 497:glucose_sensor_hw.c ****  *
+ 498:glucose_sensor_hw.c ****  *  DESCRIPTION
+ 499:glucose_sensor_hw.c ****  *      This function indicated the app state through LED blinking
+ 500:glucose_sensor_hw.c ****  *
+ 501:glucose_sensor_hw.c ****  *  RETURNS/MODIFIES
+ 502:glucose_sensor_hw.c ****  *      Nothing.
+ 503:glucose_sensor_hw.c ****  *
+ 504:glucose_sensor_hw.c ****  *----------------------------------------------------------------------------*/
+ 505:glucose_sensor_hw.c **** extern void SetIndication(app_indication state)
+ 506:glucose_sensor_hw.c **** {
+  20                 	:
+  21                 		.loc 1 550 0
+ 507:glucose_sensor_hw.c **** #ifdef ENABLE_LEDBLINK
+ 508:glucose_sensor_hw.c ****     if(state == stop_ind)
+ 509:glucose_sensor_hw.c ****     {
+ 510:glucose_sensor_hw.c ****         /*Stop LED glowing */
+ 511:glucose_sensor_hw.c ****         PioEnablePWM(LED_PWM_INDEX_1, FALSE);
+ 512:glucose_sensor_hw.c **** 
+ 513:glucose_sensor_hw.c ****         /* Reconfigure LED to pio_mode_user. This reconfiguration has been done
+ 514:glucose_sensor_hw.c ****          * because When PWM is disabled, LED pio value remains same as it was at
+ 515:glucose_sensor_hw.c ****          * the exact time of disabling. So if LED was on, it may remain ON even
+ 516:glucose_sensor_hw.c ****          * after PWM disabling. So it is better to reconfigure it to user mode.
+ 517:glucose_sensor_hw.c ****          * It will reconfigured to PWM mode while enabling.
+ 518:glucose_sensor_hw.c ****          */
+ 519:glucose_sensor_hw.c ****         PioSetModes(PIO_BIT_MASK(LED_PIO), pio_mode_user);
+ 520:glucose_sensor_hw.c ****         PioSet(LED_PIO, FALSE);
+ 521:glucose_sensor_hw.c ****     }
+ 522:glucose_sensor_hw.c ****     else
+ 523:glucose_sensor_hw.c ****     {
+ 524:glucose_sensor_hw.c ****         if(state == advertising_ind)
+ 525:glucose_sensor_hw.c ****         {
+ 526:glucose_sensor_hw.c ****             /* Fast Blinking for advertising */
+ 527:glucose_sensor_hw.c ****             PioConfigPWM(LED_PWM_INDEX_1, pio_pwm_mode_push_pull, 
+ 528:glucose_sensor_hw.c ****                 DULL_LED_ON_TIME_ADV, DULL_LED_OFF_TIME_ADV,
+ 529:glucose_sensor_hw.c ****                 DULL_LED_HOLD_TIME_ADV, BRIGHT_LED_ON_TIME_ADV,
+ 530:glucose_sensor_hw.c ****                 BRIGHT_LED_OFF_TIME_ADV, BRIGHT_LED_HOLD_TIME_ADV, 
+ 531:glucose_sensor_hw.c ****                 LED_RAMP_RATE);
+ 532:glucose_sensor_hw.c ****         }
+ 533:glucose_sensor_hw.c ****         else if(state == connected_ind)
+ 534:glucose_sensor_hw.c ****         {
+ 535:glucose_sensor_hw.c ****             /* slow blinking for connected state */
+ 536:glucose_sensor_hw.c ****             PioConfigPWM(LED_PWM_INDEX_1, pio_pwm_mode_push_pull, 
+ 537:glucose_sensor_hw.c ****                 DULL_LED_ON_TIME_CONN, DULL_LED_OFF_TIME_CONN, 
+ 538:glucose_sensor_hw.c ****                 DULL_LED_HOLD_TIME_CONN, BRIGHT_LED_ON_TIME_CONN,
+ 539:glucose_sensor_hw.c ****                 BRIGHT_LED_OFF_TIME_CONN, BRIGHT_LED_HOLD_TIME_CONN, 
+ 540:glucose_sensor_hw.c ****                 LED_RAMP_RATE);
+ 541:glucose_sensor_hw.c ****         }
+ 542:glucose_sensor_hw.c **** 
+ 543:glucose_sensor_hw.c ****         PioSetModes(PIO_BIT_MASK(LED_PIO), pio_mode_pwm1);
+ 544:glucose_sensor_hw.c ****         /*Start LED glowing */
+ 545:glucose_sensor_hw.c ****         PioEnablePWM(LED_PWM_INDEX_1, TRUE);
+ 546:glucose_sensor_hw.c ****         PioSet(LED_PIO, TRUE);
+ 547:glucose_sensor_hw.c ****     }
+ 548:glucose_sensor_hw.c **** #endif /* ENABLE_LEDBLINK */
+ 549:glucose_sensor_hw.c **** }
+  22                 	ra	0,X
+  23 0000 00 E2       	.LFE7:
+  24                 		.size	SetIndication, .-SetIndication
+  25                 		.global	__size_of_SetIndication
+  26                 		.equ	__size_of_SetIndication,. - SetIndication
+  27                 		.section	.text.AppHwDataInit,"ax",@progbits
+  28                 		.global	AppHwDataInit
+  29                 		.type	AppHwDataInit, @function
+  30                 	AppHwDataInit:
+  31                 	.LFB6:
+  32                 		.loc 1 485 0
+ 485:glucose_sensor_hw.c **** {
+  33                 	001
+  34 0000 01 0B       	.LCFI0:
+  35                 		.loc 1 487 0
+ 487:glucose_sensor_hw.c ****     TimerDelete(g_app_hw_data.button_press_tid);
+  36                 		X,#g_app_hw_data+1
+  37 0001 00 00 00 18 		ld	AL,@(0,X)
+  38 0003 00 16       		bsr	TimerDelete
+  39 0004 00 00 00 00 		.loc 1 488 0
+  39      00 9C 
+ 488:glucose_sensor_hw.c ****     g_app_hw_data.button_press_tid = TIMER_INVALID;
+  40                 	AL,#0x0000
+  41 0007 00 14       		ld	X,#g_app_hw_data+1
+  42 0008 00 00 00 18 		st	AL,@(0,X)
+  43 000a 00 26       		.loc 1 491 0
+ 491:glucose_sensor_hw.c **** }
+  44                 	ve	#0x0001
+  45 000b 01 0F       	.LFE6:
+  46                 		.size	AppHwDataInit, .-AppHwDataInit
+  47                 		.global	__size_of_AppHwDataInit
+  48                 		.equ	__size_of_AppHwDataInit,. - AppHwDataInit
+  49                 		.section	.text.HandlePIOChangedEvent,"ax",@progbits
+  50                 		.global	HandlePIOChangedEvent
+  51                 		.type	HandlePIOChangedEvent, @function
+  52                 	HandlePIOChangedEvent:
+  53                 	.LFB8:
+  54                 		.loc 1 565 0
+ 550:glucose_sensor_hw.c **** 
+ 551:glucose_sensor_hw.c **** /*----------------------------------------------------------------------------*
+ 552:glucose_sensor_hw.c ****  *  NAME
+ 553:glucose_sensor_hw.c ****  *      HandlePIOChangedEvent
+ 554:glucose_sensor_hw.c ****  *
+ 555:glucose_sensor_hw.c ****  *  DESCRIPTION
+ 556:glucose_sensor_hw.c ****  *      This function handles PIO Changed event
+ 557:glucose_sensor_hw.c ****  *
+ 558:glucose_sensor_hw.c ****  *  RETURNS
+ 559:glucose_sensor_hw.c ****  *      Nothing.
+ 560:glucose_sensor_hw.c ****  *
+ 561:glucose_sensor_hw.c ****  *----------------------------------------------------------------------------*/
+ 562:glucose_sensor_hw.c **** 
+ 563:glucose_sensor_hw.c **** extern void HandlePIOChangedEvent(uint32 pio_changed)
+ 564:glucose_sensor_hw.c **** {
+  55                 	er	#0x0003
+  56                 	.LCFI1:
+  57 0000 03 0B       		.loc 1 567 0
+  58                 		and	AL,#0x0800
+ 565:glucose_sensor_hw.c **** 
+ 566:glucose_sensor_hw.c ****     if(pio_changed & PIO_BIT_MASK(BUTTON_PIO))
+  59                 	2:
+  60 0001 08 00 00 C4 		beq	.L8
+  61                 	.LBB2:
+  62 0003 00 00 00 00 		.loc 1 570 0
+  62      00 F4 
+  63                 		bsr	PioGets
+ 567:glucose_sensor_hw.c ****     {
+ 568:glucose_sensor_hw.c ****         /* PIO changed */
+ 569:glucose_sensor_hw.c ****         uint32 pios = PioGets();
+  64                 	:
+  65 0006 00 00 00 00 		.loc 1 572 0
+  65      00 9C 
+  66                 		and	AL,#0x0800
+ 570:glucose_sensor_hw.c **** 
+ 571:glucose_sensor_hw.c ****         if(!(pios & PIO_BIT_MASK(BUTTON_PIO)))
+  67                 	L4:
+  68 0009 08 00 00 C4 		bne	.L7
+  69                 		.loc 1 581 0
+  70 000b 00 00 00 00 		ld	AL,@g_app_hw_data+0x0001
+  70      00 F0 
+ 572:glucose_sensor_hw.c ****         {
+ 573:glucose_sensor_hw.c ****             /* This event comes when a button is pressed */
+ 574:glucose_sensor_hw.c **** 
+ 575:glucose_sensor_hw.c ****             /* Start a timer for LONG_BUTTON_PRESS_TIMER seconds. If timer expi-
+ 576:glucose_sensor_hw.c ****              * res before we receive a button release event then it was a long -
+ 577:glucose_sensor_hw.c ****              * press and if we receive a button release pio changed event, it -
+ 578:glucose_sensor_hw.c ****              * means it was a short press.
+ 579:glucose_sensor_hw.c ****              */
+ 580:glucose_sensor_hw.c ****             TimerDelete(g_app_hw_data.button_press_tid);
+  71                 		TimerDelete
+  72 000e 00 00 00 15 		.loc 1 583 0
+  73 0010 00 00 00 00 		ld	AL,#0x0001
+  73      00 9C 
+ 581:glucose_sensor_hw.c **** 
+ 582:glucose_sensor_hw.c ****             g_app_hw_data.button_press_tid = TimerCreate(
+  74                 		AL,@(0,Y)
+  75 0013 01 14       		ld	AL,#HandleExtraLongButtonPress
+  76 0014 00 27       		st	AL,@(0x0001,Y)
+  77 0015 00 00 00 14 		ld	AH,#0x003d
+  78 0017 01 27       		ld	AL,#0x0900
+  79 0018 3D 10       		bsr	TimerCreate
+  80 0019 09 00 00 14 		st	AL,@g_app_hw_data+0x0001
+  81 001b 00 00 00 00 		bra	.L8
+  81      00 9C 
+  82 001e 00 00 00 25 	.L7:
+  83 0020 00 00 00 00 		.loc 1 591 0
+  83      00 E0 
+  84                 		ld	AL,@g_app_hw_data+0x0001
+ 583:glucose_sensor_hw.c ****                                            EXTRA_LONG_BUTTON_PRESS_TIMER,
+ 584:glucose_sensor_hw.c ****                                            TRUE,
+ 585:glucose_sensor_hw.c ****                                            HandleExtraLongButtonPress);
+ 586:glucose_sensor_hw.c ****         }
+ 587:glucose_sensor_hw.c ****         else
+ 588:glucose_sensor_hw.c ****         {
+ 589:glucose_sensor_hw.c ****             /* This event comes when a button is released */
+ 590:glucose_sensor_hw.c ****             if(g_app_hw_data.button_press_tid != TIMER_INVALID)
+  85                 	loc 1 596 0
+  86 0023 00 00 00 15 		bsr	TimerDelete
+  87 0025 00 00 00 00 		.loc 1 597 0
+  87      00 F4 
+ 591:glucose_sensor_hw.c ****             {
+ 592:glucose_sensor_hw.c ****                 /* Timer was already running. This means it was a short button 
+ 593:glucose_sensor_hw.c ****                  * press.
+ 594:glucose_sensor_hw.c ****                  */
+ 595:glucose_sensor_hw.c ****                 TimerDelete(g_app_hw_data.button_press_tid);
+  88                 		AL,#0x0000
+  89 0028 00 00 00 00 		st	AL,@g_app_hw_data+0x0001
+  89      00 9C 
+ 596:glucose_sensor_hw.c ****                 g_app_hw_data.button_press_tid = TIMER_INVALID;
+  90                 	loc 1 599 0
+  91 002b 00 14       		bsr	HandleShortButtonPress
+  92 002c 00 00 00 25 	.LVL5:
+ 597:glucose_sensor_hw.c **** 
+ 598:glucose_sensor_hw.c ****                 HandleShortButtonPress();
+  93                 	:
+  94 002e 00 00 00 00 	.LBE2:
+  94      00 9C 
+  95                 		.loc 1 604 0
+  96                 		leave	#0x0003
+  97                 	.LFE8:
+ 599:glucose_sensor_hw.c ****             }
+ 600:glucose_sensor_hw.c ****         }
+ 601:glucose_sensor_hw.c ****     }
+ 602:glucose_sensor_hw.c **** 
+ 603:glucose_sensor_hw.c **** }
+  98                 	e	HandlePIOChangedEvent, .-HandlePIOChangedEvent
+  99 0031 03 0F       		.global	__size_of_HandlePIOChangedEvent
+ 100                 		.equ	__size_of_HandlePIOChangedEvent,. - HandlePIOChangedEvent
+ 101                 		.section	.text.FormulateNAddGlucoseMeasData,"ax",@progbits
+ 102                 		.global	FormulateNAddGlucoseMeasData
+ 103                 		.type	FormulateNAddGlucoseMeasData, @function
+ 104                 	FormulateNAddGlucoseMeasData:
+ 105                 	.LFB5:
+ 106                 		.loc 1 340 0
+ 107                 	.LVL6:
+ 108                 		enter	#0x0002
+ 340:glucose_sensor_hw.c **** {
+ 109                 		AL,@(0,Y)
+ 110                 		.loc 1 363 0
+ 111 0000 02 0B       		bsr	TimeGet16
+ 112                 	.LVL7:
+ 113 0001 00 27       		.loc 1 384 0
+ 363:glucose_sensor_hw.c ****     random_val = (TimeGet16() % 29) + GLUCOSE_MEAS_FASTING_NORMAL_MIN;
+ 114                 	L,@(0,Y)
+ 115 0002 00 00 00 00 		cmp	AL,#0x0001
+ 115      00 9C 
+ 116                 		bne	.L10
+ 384:glucose_sensor_hw.c ****      if(num == 1)
+ 117                 	B3:
+ 118 0005 00 17       		.loc 1 386 0
+ 119 0006 01 84       		bsr	TimeGet16
+ 120 0007 00 00 00 00 	.L10:
+ 120      00 F0 
+ 121                 	.LBE3:
+ 386:glucose_sensor_hw.c ****         uint8 random_error = TimeGet16() % 256;
+ 122                 	 1 427 0
+ 123 000a 00 00 00 00 		bsr	TimeGet16
+ 123      00 9C 
+ 124                 		.loc 1 451 0
+ 125                 		bsr	TimeGet16
+ 427:glucose_sensor_hw.c ****         random_val = (TimeGet16() % 99);
+ 126                 	c 1 469 0
+ 127 000d 00 00 00 00 		leave	#0x0002
+ 127      00 9C 
+ 451:glucose_sensor_hw.c ****         random_val = (TimeGet16() % 99);
+ 128                 	FE5:
+ 129 0010 00 00 00 00 		.size	FormulateNAddGlucoseMeasData, .-FormulateNAddGlucoseMeasData
+ 129      00 9C 
+ 469:glucose_sensor_hw.c **** }
+ 130                 	global	__size_of_FormulateNAddGlucoseMeasData
+ 131 0013 02 0F       		.equ	__size_of_FormulateNAddGlucoseMeasData,. - FormulateNAddGlucoseMeasData
+ 132                 		.section	.text.InitGSHardware,"ax",@progbits
+ 133                 		.global	InitGSHardware
+ 134                 		.type	InitGSHardware, @function
+ 135                 	InitGSHardware:
+ 136                 	.LFB4:
+ 137                 		.loc 1 273 0
+ 138                 		enter	#0x0008
+ 139                 	.LCFI3:
+ 140                 		.loc 1 275 0
+ 273:glucose_sensor_hw.c **** {
+ 141                 	001
+ 142 0000 08 0B       		bsr	SleepWakeOnUartRX
+ 143                 		.loc 1 283 0
+ 275:glucose_sensor_hw.c ****     SleepWakeOnUartRX(TRUE);
+ 144                 		AL,#0x0000
+ 145 0001 01 14       		st	AL,@(0,Y)
+ 146 0002 00 00 00 00 		ld	AH,#0x0000
+ 146      00 9C 
+ 283:glucose_sensor_hw.c ****     PioSetModes(PIO_BIT_MASK(BUTTON_PIO), pio_mode_user);
+ 147                 		AL,#0x0800
+ 148 0005 00 14       		bsr	PioSetModes
+ 149 0006 00 27       		.loc 1 284 0
+ 150 0007 00 10       		ld	AL,#0x000b
+ 151 0008 08 00 00 14 		ld	AH,#0x0000
+ 152 000a 00 00 00 00 		bsr	PioSetDir
+ 152      00 9C 
+ 284:glucose_sensor_hw.c ****     PioSetDir(BUTTON_PIO, PIO_DIRECTION_INPUT); /* input */
+ 153                 	1 285 0
+ 154 000d 0B 14       		ld	AL,#0x0007
+ 155 000e 00 10       		st	AL,@(0,Y)
+ 156 000f 00 00 00 00 		ld	AH,#0x0000
+ 156      00 9C 
+ 285:glucose_sensor_hw.c ****     PioSetPullModes(PIO_BIT_MASK(BUTTON_PIO), pio_mode_strong_pull_up); 
+ 157                 	AL,#0x0800
+ 158 0012 07 14       		bsr	PioSetPullModes
+ 159 0013 00 27       		.loc 1 287 0
+ 160 0014 00 10       		ld	AL,#0x0003
+ 161 0015 08 00 00 14 		st	AL,@(0,Y)
+ 162 0017 00 00 00 00 		ld	AH,#0x0000
+ 162      00 9C 
+ 287:glucose_sensor_hw.c ****     PioSetEventMask(PIO_BIT_MASK(BUTTON_PIO), pio_event_mode_both);
+ 163                 	,#0x0800
+ 164 001a 03 14       		bsr	PioSetEventMask
+ 165 001b 00 27       		.loc 1 290 0
+ 166 001c 00 10       		ld	AL,#0x0004
+ 167 001d 08 00 00 14 		st	AL,@(0,Y)
+ 168 001f 00 00 00 00 		ld	AH,#0x0000
+ 168      00 9C 
+ 290:glucose_sensor_hw.c ****     PioSetModes(PIO_BIT_MASK(BUZZER_PIO), pio_mode_pwm0);
+ 169                 	,#0x0008
+ 170 0022 04 14       		bsr	PioSetModes
+ 171 0023 00 27       		.loc 1 315 0
+ 172 0024 00 10       		ld	AL,#0x0002
+ 173 0025 08 14       		st	AL,@(0,Y)
+ 174 0026 00 00 00 00 		ld	AL,#0x000f
+ 174      00 9C 
+ 315:glucose_sensor_hw.c ****     PioConfigPWM(BUZZER_PWM_INDEX_0, pio_pwm_mode_push_pull, DULL_BUZZ_ON_TIME,
+ 175                 	,@(0x0001,Y)
+ 176 0029 02 14       		ld	AL,#0x0000
+ 177 002a 00 27       		st	AL,@(0x0002,Y)
+ 178 002b 0F 14       		ld	AL,#0x0002
+ 179 002c 01 27       		st	AL,@(0x0003,Y)
+ 180 002d 00 14       		ld	AL,#0x000f
+ 181 002e 02 27       		st	AL,@(0x0004,Y)
+ 182 002f 02 14       		ld	AL,#0x0000
+ 183 0030 03 27       		st	AL,@(0x0005,Y)
+ 184 0031 0F 14       		ld	AL,#0x00ff
+ 185 0032 04 27       		st	AL,@(0x0006,Y)
+ 186 0033 00 14       		ld	AL,#0x0000
+ 187 0034 05 27       		ld	AH,#0x0000
+ 188 0035 01 00 FF 14 		bsr	PioConfigPWM
+ 189 0037 06 27       		.loc 1 320 0
+ 190 0038 00 14       		ld	AL,#0x0000
+ 191 0039 00 10       		ld	AH,#0x0000
+ 192 003a 00 00 00 00 		bsr	PioEnablePWM
+ 192      00 9C 
+ 320:glucose_sensor_hw.c ****     PioEnablePWM(BUZZER_PWM_INDEX_0, FALSE);
+ 193                 	AL,#0x0005
+ 194 003d 00 14       		bsr	PioSetI2CPullMode
+ 195 003e 00 10       		.loc 1 325 0
+ 196 003f 00 00 00 00 		leave	#0x0008
+ 196      00 9C 
+ 324:glucose_sensor_hw.c ****     PioSetI2CPullMode(pio_i2c_pull_mode_strong_pull_down);
+ 197                 	4:
+ 198 0042 05 14       		.size	InitGSHardware, .-InitGSHardware
+ 199 0043 00 00 00 00 		.global	__size_of_InitGSHardware
+ 199      00 9C 
+ 325:glucose_sensor_hw.c **** }
+ 200                 	qu	__size_of_InitGSHardware,. - InitGSHardware
+ 201 0046 08 0F       		.section	.text.SoundBuzzer,"ax",@progbits
+ 202                 		.global	SoundBuzzer
+ 203                 		.type	SoundBuzzer, @function
+ 204                 	SoundBuzzer:
+ 205                 	.LFB3:
+ 206                 		.loc 1 194 0
+ 207                 	.LVL8:
+ 208                 		enter	#0x0006
+ 209                 	.LCFI4:
+ 210                 		st	AL,@(0x0002,Y)
+ 194:glucose_sensor_hw.c **** {
+ 211                 	 0
+ 212                 		ld	AL,#0x0000
+ 213 0000 06 0B       	.LVL9:
+ 214                 		ld	AH,#0x0000
+ 215 0001 02 27       		bsr	PioEnablePWM
+ 198:glucose_sensor_hw.c ****     PioEnablePWM(BUZZER_PWM_INDEX_0, FALSE);
+ 216                 	 1 199 0
+ 217 0002 00 14       		ld	AL,@g_app_hw_data
+ 218                 		bsr	TimerDelete
+ 219 0003 00 10       		.loc 1 200 0
+ 220 0004 00 00 00 00 		ld	AL,#0x0000
+ 220      00 9C 
+ 199:glucose_sensor_hw.c ****     TimerDelete(g_app_hw_data.buzzer_tid);
+ 221                 	L,@g_app_hw_data
+ 222 0007 00 00 00 15 		.loc 1 201 0
+ 223 0009 00 00 00 00 		st	AL,@g_app_hw_data+0x0003
+ 223      00 9C 
+ 200:glucose_sensor_hw.c ****     g_app_hw_data.buzzer_tid = TIMER_INVALID;
+ 224                 	oc 1 206 0
+ 225 000c 00 14       		ld	AL,@(0x0002,Y)
+ 226 000d 00 00 00 25 		st	AL,@g_app_hw_data+0x0002
+ 201:glucose_sensor_hw.c ****     g_app_hw_data.beep_count = 0;
+ 227                 	oc 1 208 0
+ 228 000f 00 00 00 25 		cmp	AL,#0x0005
+ 206:glucose_sensor_hw.c ****     g_app_hw_data.beep_type = beep_type;
+ 229                 	cc	.L15
+ 230 0011 02 17       		ld	AL,#0x0001
+ 231 0012 00 00 00 25 		asl	@(0x0002,Y)
+ 208:glucose_sensor_hw.c ****     switch(g_app_hw_data.beep_type)
+ 232                 		AH,@$XAP_AL
+ 233 0014 05 84       		and	AL,#0x001b
+ 234 0015 00 00 00 00 		bne	.L22
+ 234      00 F8 
+ 235 0018 01 14       		ld	AL,@$XAP_AH
+ 236 0019 02 A3       		and	AL,#0x0004
+ 237 001a 00 00 00 11 		beq	.L15
+ 238 001c 1B C4       		ld	AL,#0x0007
+ 239 001d 00 00 00 00 		st	AL,@(0x0003,Y)
+ 239      00 F0 
+ 240 0020 00 00 00 15 		ld	AL,#0xa120
+ 241 0022 04 C4       		bra	.L21
+ 242 0023 00 00 00 00 	.L15:
+ 242      00 F4 
+ 243 0026 07 14       		.loc 1 237 0
+ 244 0027 03 27       		ld	AL,#0x000c
+ 245 0028 A1 00 20 14 		bsr	ReportPanic
+ 246 002a 00 00 00 00 	.L22:
+ 246      00 E0 
+ 247                 		ld	AL,#0x0001
+ 237:glucose_sensor_hw.c ****             ReportPanic(app_panic_unexpected_beep_type);
+ 248                 	Y)
+ 249 002d 0C 14       		ld	AL,#0x86a0
+ 250 002e 00 00 00 00 	.L21:
+ 250      00 9C 
+ 251                 		st	AL,@(0x0004,Y)
+ 252 0031 01 14       		.loc 1 245 0
+ 253 0032 03 27       		tst	@g_app_hw_data+0x0002
+ 254 0033 87 00 A0 14 		beq	.L20
+ 255                 		.loc 1 248 0
+ 256 0035 04 27       		ld	AL,#0x0000
+ 245:glucose_sensor_hw.c ****     if(g_app_hw_data.beep_type != beep_off)
+ 257                 	_app_hw_data+0x0003
+ 258 0036 00 00 00 99 		.loc 1 251 0
+ 259 0038 00 00 00 00 		ld	AH,#0x0001
+ 259      00 F4 
+ 248:glucose_sensor_hw.c ****         g_app_hw_data.beep_count = 0;
+ 260                 	r	PioEnablePWM
+ 261 003b 00 14       		.loc 1 253 0
+ 262 003c 00 00 00 25 		ld	AL,@g_app_hw_data
+ 251:glucose_sensor_hw.c ****         PioEnablePWM(BUZZER_PWM_INDEX_0, TRUE);
+ 263                 	r	TimerDelete
+ 264 003e 01 10       		.loc 1 254 0
+ 265 003f 00 00 00 00 		ld	AL,#0x0001
+ 265      00 9C 
+ 253:glucose_sensor_hw.c ****         TimerDelete(g_app_hw_data.buzzer_tid);
+ 266                 		AL,@(0,Y)
+ 267 0042 00 00 00 15 		ld	AL,#appBuzzerTimerHandler
+ 268 0044 00 00 00 00 		st	AL,@(0x0001,Y)
+ 268      00 9C 
+ 254:glucose_sensor_hw.c ****         g_app_hw_data.buzzer_tid = TimerCreate(beep_timer, TRUE, 
+ 269                 		AH,@(0x0003,Y)
+ 270 0047 01 14       		ld	AL,@(0x0004,Y)
+ 271 0048 00 27       		bsr	TimerCreate
+ 272 0049 00 00 00 14 		st	AL,@g_app_hw_data
+ 273 004b 01 27       	.L20:
+ 274 004c 03 13       		.loc 1 258 0
+ 275 004d 04 17       		leave	#0x0006
+ 276 004e 00 00 00 00 	.LFE3:
+ 276      00 9C 
+ 277 0051 00 00 00 25 		.size	SoundBuzzer, .-SoundBuzzer
+ 278                 		.global	__size_of_SoundBuzzer
+ 258:glucose_sensor_hw.c **** }
+ 279                 	ze_of_SoundBuzzer,. - SoundBuzzer
+ 280 0053 06 0F       		.section	.text.appBuzzerTimerHandler,"ax",@progbits
+ 281                 		.type	appBuzzerTimerHandler, @function
+ 282                 	appBuzzerTimerHandler:
+ 283                 	.LFB2:
+ 284                 		.loc 1 67 0
+ 285                 	.LVL10:
+ 286                 		enter	#0x0003
+ 287                 	.LCFI5:
+ 288                 		.loc 1 70 0
+  67:glucose_sensor_hw.c **** {
+ 289                 	0000
+ 290                 	.LVL11:
+ 291 0000 03 0B       		st	AL,@g_app_hw_data
+ 292                 		.loc 1 72 0
+  70:glucose_sensor_hw.c ****     g_app_hw_data.buzzer_tid = TIMER_INVALID;
+ 293                 	AL,@g_app_hw_data+0x0002
+ 294 0001 00 14       		cmp	AL,#0x0003
+ 295                 		beq	.L26
+ 296 0002 00 00 00 25 		cmp	AL,#0x0004
+  72:glucose_sensor_hw.c ****     switch(g_app_hw_data.beep_type)
+ 297                 		.L28
+ 298 0004 00 00 00 15 		cmp	AL,#0x0001
+ 299 0006 03 84       		bcs	.L24
+ 300 0007 00 00 00 00 		bra	.L43
+ 300      00 F4 
+ 301 000a 04 84       	.L28:
+ 302 000b 00 00 00 00 		cmp	AL,#0x0004
+ 302      00 F8 
+ 303 000e 01 84       		bne	.L24
+ 304 000f 00 00 00 00 		bra	.L44
+ 304      00 FC 
+ 305 0012 00 00 00 00 	.L43:
+ 305      00 E0 
+ 306                 		.loc 1 77 0
+ 307 0015 04 84       		ld	X,#0x0000
+ 308 0016 00 00 00 00 		st	X,@g_app_hw_data+0x0002
+ 308      00 F0 
+ 309 0019 00 00 00 00 		.loc 1 80 0
+ 309      00 E0 
+ 310                 		ld	AL,#0x0000
+  77:glucose_sensor_hw.c ****             g_app_hw_data.beep_type = beep_off;
+ 311                 	
+ 312 001c 00 18       		bra	.L41
+ 313 001d 00 00 00 29 	.L26:
+  80:glucose_sensor_hw.c ****             PioEnablePWM(BUZZER_PWM_INDEX_0, FALSE);
+ 314                 	loc 1 85 0
+ 315 001f 00 14       		ld	AL,@g_app_hw_data+0x0003
+ 316 0020 00 10       		bne	.L30
+ 317 0021 00 00 00 00 		.loc 1 88 0
+ 317      00 E0 
+ 318                 		ld	AL,#0x0001
+  85:glucose_sensor_hw.c ****             if(g_app_hw_data.beep_count == 0)
+ 319                 	.L40
+ 320 0024 00 00 00 15 	.L30:
+ 321 0026 00 00 00 00 		.loc 1 96 0
+ 321      00 F0 
+  88:glucose_sensor_hw.c ****                 g_app_hw_data.beep_count = 1;
+ 322                 	p	AL,#0x0001
+ 323 0029 01 14       		bne	.L35
+ 324 002a 00 00 00 00 		.loc 1 98 0
+ 324      00 E0 
+ 325                 		ld	X,#0x0002
+  96:glucose_sensor_hw.c ****             else if(g_app_hw_data.beep_count == 1)
+ 326                 	X,@g_app_hw_data+0x0003
+ 327 002d 01 84       		bra	.L42
+ 328 002e 00 00 00 00 	.L44:
+ 328      00 F0 
+  98:glucose_sensor_hw.c ****                 g_app_hw_data.beep_count = 2;
+ 329                 	oc 1 120 0
+ 330 0031 02 18       		ld	AL,@g_app_hw_data+0x0003
+ 331 0032 00 00 00 29 		beq	.L32
+ 332 0034 00 00 00 00 		cmp	AL,#0x0002
+ 332      00 E0 
+ 333                 		bne	.L33
+ 120:glucose_sensor_hw.c ****             if(g_app_hw_data.beep_count == 0 ||
+ 334                 	
+ 335 0037 00 00 00 15 		.loc 1 124 0
+ 336 0039 00 00 00 00 		add	AL,#0x0001
+ 336      00 F4 
+ 337 003c 02 84       	.L40:
+ 338 003d 00 00 00 00 		st	AL,@g_app_hw_data+0x0003
+ 338      00 F0 
+ 339                 		.loc 1 127 0
+ 124:glucose_sensor_hw.c ****                 g_app_hw_data.beep_count++;
+ 340                 	L,#0x0000
+ 341 0040 01 34       		ld	AH,#0x0000
+ 342                 		bsr	PioEnablePWM
+ 343 0041 00 00 00 25 		ld	AH,#0x0000
+ 127:glucose_sensor_hw.c ****                 PioEnablePWM(BUZZER_PWM_INDEX_0, FALSE);
+ 344                 	12:
+ 345 0043 00 14       		ld	AL,#0x61a8
+ 346 0044 00 10       	.LVL13:
+ 347 0045 00 00 00 00 		bra	.L29
+ 347      00 9C 
+ 348 0048 00 10       	.LVL14:
+ 349                 	.L33:
+ 350 0049 62 00 A8 14 		.loc 1 132 0
+ 351                 		cmp	AL,#0x0001
+ 352 004b 00 00 00 00 		beq	.L34
+ 352      00 E0 
+ 353                 		cmp	AL,#0x0003
+ 354                 		bne	.L35
+ 132:glucose_sensor_hw.c ****             else if(g_app_hw_data.beep_count == 1 ||
+ 355                 	 1 135 0
+ 356 004e 01 84       		add	AL,#0x0001
+ 357 004f 00 00 00 00 		st	AL,@g_app_hw_data+0x0003
+ 357      00 F4 
+ 358 0052 03 84       	.L42:
+ 359 0053 00 00 00 00 		.loc 1 138 0
+ 359      00 F0 
+ 360                 		ld	AL,#0x0000
+ 135:glucose_sensor_hw.c ****                 g_app_hw_data.beep_count++;
+ 361                 	,#0x0001
+ 362 0056 01 34       	.L41:
+ 363 0057 00 00 00 25 		bsr	PioEnablePWM
+ 364                 		bra	.L39
+ 138:glucose_sensor_hw.c ****                 PioEnablePWM(BUZZER_PWM_INDEX_0, TRUE);
+ 365                 	:
+ 366 0059 00 14       		.loc 1 145 0
+ 367 005a 01 10       		ld	AL,#0x0000
+ 368                 		st	AL,@g_app_hw_data+0x0003
+ 369 005b 00 00 00 00 		.loc 1 148 0
+ 369      00 9C 
+ 370 005e 00 00 00 00 		ld	AH,#0x0000
+ 370      00 E0 
+ 371                 		bsr	PioEnablePWM
+ 145:glucose_sensor_hw.c ****                 g_app_hw_data.beep_count = 0;
+ 372                 	 150 0
+ 373 0061 00 14       		ld	X,#0x0000
+ 374 0062 00 00 00 25 		st	X,@g_app_hw_data+0x0002
+ 148:glucose_sensor_hw.c ****                 PioEnablePWM(BUZZER_PWM_INDEX_0, FALSE);
+ 375                 	a	.L39
+ 376 0064 00 10       	.L24:
+ 377 0065 00 00 00 00 		.loc 1 157 0
+ 377      00 9C 
+ 150:glucose_sensor_hw.c ****                 g_app_hw_data.beep_type = beep_off;
+ 378                 		AL,#0x000c
+ 379 0068 00 18       		bsr	ReportPanic
+ 380 0069 00 00 00 29 	.L39:
+ 381 006b 00 00 00 00 		ld	AH,#0x0001
+ 381      00 E0 
+ 382                 	.LVL15:
+ 157:glucose_sensor_hw.c ****             ReportPanic(app_panic_unexpected_beep_type);
+ 383                 	L,#0x86a0
+ 384 006e 0C 14       	.LVL16:
+ 385 006f 00 00 00 00 	.L29:
+ 385      00 9C 
+ 386                 		.loc 1 165 0
+ 387 0072 01 10       		tst	@g_app_hw_data+0x0002
+ 388                 		beq	.L37
+ 389 0073 87 00 A0 14 		.loc 1 168 0
+ 390                 		ld	X,#0x0001
+ 391                 		st	X,@(0,Y)
+ 165:glucose_sensor_hw.c ****     if(g_app_hw_data.beep_type != beep_off)
+ 392                 	pBuzzerTimerHandler
+ 393 0075 00 00 00 99 		st	X,@(0x0001,Y)
+ 394 0077 00 00 00 00 		bsr	TimerCreate
+ 394      00 F4 
+ 168:glucose_sensor_hw.c ****         g_app_hw_data.buzzer_tid = TimerCreate(beep_timer, TRUE, 
+ 395                 	L17:
+ 396 007a 01 18       		st	AL,@g_app_hw_data
+ 397 007b 00 2B       	.LVL18:
+ 398 007c 00 00 00 18 	.L37:
+ 399 007e 01 2B       		.loc 1 171 0
+ 400 007f 00 00 00 00 		leave	#0x0003
+ 400      00 9C 
+ 401                 	.LFE2:
+ 402 0082 00 00 00 25 		.size	appBuzzerTimerHandler, .-appBuzzerTimerHandler
+ 403                 		.equ	__size_of_appBuzzerTimerHandler,. - appBuzzerTimerHandler
+ 404                 		.comm g_app_hw_data, 4, 1
+ 171:glucose_sensor_hw.c **** }
+ 405                 		.debug_frame,"",@progbits
+ 406 0084 03 0F       	.Lframe0:
+ 407                 		.4byte	.LECIE0-.LSCIE0
+ 408                 	.LSCIE0:
+ 409                 		.4byte	0xffffffff
+ 410                 		.1byte	0x1
+ 411                 		.ascii "\000"
+ 412                 		.1byte	0x1
+ 413                 		.1byte	0x7f
+ 414 0000 00 00 00 00 		.1byte	0x3
+ 415                 		.1byte	0xc
+ 416 0002 FF FF FF FF 		.1byte	0x5
+ 417 0004 01          		.1byte	0x0
+ 418 0004 00          		.p2align	2
+ 419 0005 01          	.LECIE0:
+ 420 0005 7F          	.LSFDE0:
+ 421 0006 03          		.4byte	.LEFDE0-.LASFDE0
+ 422 0006 0C          	.LASFDE0:
+ 423 0007 05          		.4byte	.Lframe0
+ 424 0007 00          		.4byte	.LFB7
+ 425                 		.4byte	.LFE7-.LFB7
+ 426                 		.p2align	2
+ 427                 	.LEFDE0:
+ 428 0008 00 00 00 00 	.LSFDE2:
+ 429                 		.4byte	.LEFDE2-.LASFDE2
+ 430 000a 00 00 00 00 	.LASFDE2:
+ 431 000c 00 00 00 00 		.4byte	.Lframe0
+ 432 000e 00 00 00 01 		.4byte	.LFB6
+ 433                 		.4byte	.LFE6-.LFB6
+ 434                 		.1byte	0x4
+ 435                 		.4byte	.LCFI0-.LFB6
+ 436 0010 00 00 00 00 		.1byte	0xe
+ 437                 		.1byte	0x1
+ 438 0012 00 00 00 00 		.1byte	0x83
+ 439 0014 00 00 00 00 		.1byte	0x1
+ 440 0016 00 00 00 00 		.p2align	2
+ 441 0018 41          	.LEFDE2:
+ 442                 	.LSFDE4:
+ 443 0018 0E          		.4byte	.LEFDE4-.LASFDE4
+ 444 0019 01          	.LASFDE4:
+ 445 0019 83          		.4byte	.Lframe0
+ 446 001a 01          		.4byte	.LFB8
+ 447 001a 00 00 00    		.4byte	.LFE8-.LFB8
+ 448                 		.1byte	0x4
+ 449                 		.4byte	.LCFI1-.LFB8
+ 450 001c 00 00 00 00 		.1byte	0xe
+ 451                 		.1byte	0x3
+ 452 001e 00 00 00 00 		.1byte	0x83
+ 453 0020 00 00 00 00 		.1byte	0x1
+ 454 0022 00 00 00 00 		.p2align	2
+ 455 0024 41          	.LEFDE4:
+ 456                 	.LSFDE6:
+ 457 0024 0E          		.4byte	.LEFDE6-.LASFDE6
+ 458 0025 03          	.LASFDE6:
+ 459 0025 83          		.4byte	.Lframe0
+ 460 0026 01          		.4byte	.LFB5
+ 461 0026 00 00 00    		.4byte	.LFE5-.LFB5
+ 462                 		.1byte	0x4
+ 463                 		.4byte	.LCFI2-.LFB5
+ 464 0028 00 00 00 00 		.1byte	0xe
+ 465                 		.1byte	0x2
+ 466 002a 00 00 00 00 		.1byte	0x83
+ 467 002c 00 00 00 00 		.1byte	0x1
+ 468 002e 00 00 00 00 		.p2align	2
+ 469 0030 41          	.LEFDE6:
+ 470                 	.LSFDE8:
+ 471 0030 0E          		.4byte	.LEFDE8-.LASFDE8
+ 472 0031 02          	.LASFDE8:
+ 473 0031 83          		.4byte	.Lframe0
+ 474 0032 01          		.4byte	.LFB4
+ 475 0032 00 00 00    		.4byte	.LFE4-.LFB4
+ 476                 		.1byte	0x4
+ 477                 		.4byte	.LCFI3-.LFB4
+ 478 0034 00 00 00 00 		.1byte	0xe
+ 479                 		.1byte	0x8
+ 480 0036 00 00 00 00 		.1byte	0x83
+ 481 0038 00 00 00 00 		.1byte	0x1
+ 482 003a 00 00 00 00 		.p2align	2
+ 483 003c 41          	.LEFDE8:
+ 484                 	.LSFDE10:
+ 485 003c 0E          		.4byte	.LEFDE10-.LASFDE10
+ 486 003d 08          	.LASFDE10:
+ 487 003d 83          		.4byte	.Lframe0
+ 488 003e 01          		.4byte	.LFB3
+ 489 003e 00 00 00    		.4byte	.LFE3-.LFB3
+ 490                 		.1byte	0x4
+ 491                 		.4byte	.LCFI4-.LFB3
+ 492 0040 00 00 00 00 		.1byte	0xe
+ 493                 		.1byte	0x6
+ 494 0042 00 00 00 00 		.1byte	0x83
+ 495 0044 00 00 00 00 		.1byte	0x1
+ 496 0046 00 00 00 00 		.p2align	2
+ 497 0048 41          	.LEFDE10:
+ 498                 	.LSFDE12:
+ 499 0048 0E          		.4byte	.LEFDE12-.LASFDE12
+ 500 0049 06          	.LASFDE12:
+ 501 0049 83          		.4byte	.Lframe0
+ 502 004a 01          		.4byte	.LFB2
+ 503 004a 00 00 00    		.4byte	.LFE2-.LFB2
+ 504                 		.1byte	0x4
+ 505                 		.4byte	.LCFI5-.LFB2
+ 506 004c 00 00 00 00 		.1byte	0xe
+ 507                 		.1byte	0x3
+ 508 004e 00 00 00 00 		.1byte	0x83
+ 509 0050 00 00 00 00 		.1byte	0x1
+ 510 0052 00 00 00 00 		.p2align	2
+ 511 0054 41          	.LEFDE12:
+ 512                 		.text
+ 513 0054 0E          	.Letext0:
+ 514 0055 03          		.section	.debug_loc,"",@progbits
+ 515 0055 83          	.Ldebug_loc0:
+ 516 0056 01          	.LLST1:
+ 517 0056 00 00 00    		.4byte	.LFB6
+ 518                 		.4byte	.LCFI0
+ 519                 		.2byte	0x1
+ 520                 		.1byte	0x55
+ 521                 		.4byte	.LCFI0
+ 522                 		.4byte	.LFE6
+ 523                 		.2byte	0x2
+ 524 0000 00 00 00 00 		.1byte	0x75
+ 525 0002 00 00 00 00 		.1byte	0x1
+ 526 0004 00 01       		.4byte	0x0
+ 527 0005 55          		.4byte	0x0
+ 528 0005 00 00 00 00 	.LLST2:
+ 529 0007 00 00 00 00 		.4byte	.LFB8
+ 530 0009 00 02       		.4byte	.LCFI1
+ 531 000a 75          		.2byte	0x1
+ 532 000b 01          		.1byte	0x55
+ 533 000b 00 00 00 00 		.4byte	.LCFI1
+ 534 000d 00 00 00 00 		.4byte	.LFE8
+ 535                 		.2byte	0x2
+ 536 000f 00 00 00 00 		.1byte	0x75
+ 537 0011 00 00 00 00 		.1byte	0x3
+ 538 0013 00 01       		.4byte	0x0
+ 539 0014 55          		.4byte	0x0
+ 540 0015 00 00 00 00 	.LLST3:
+ 541 0017 00 00 00 00 		.4byte	.LVL1
+ 542 0019 00 02       		.4byte	.LVL3
+ 543 001a 75          		.2byte	0x6
+ 544 001a 03          		.1byte	0x50
+ 545 001b 00 00 00 00 		.1byte	0x93
+ 546 001d 00 00 00 00 		.1byte	0x2
+ 547                 		.1byte	0x51
+ 548 001f 00 00 00 00 		.1byte	0x93
+ 549 0021 00 00 00 00 		.1byte	0x2
+ 550 0023 00 06       		.4byte	.LVL5
+ 551 0024 50          		.4byte	.LFE8
+ 552 0024 93          		.2byte	0x6
+ 553 0025 02          		.1byte	0x50
+ 554 0025 51          		.1byte	0x93
+ 555 0026 93          		.1byte	0x2
+ 556 0026 02          		.1byte	0x51
+ 557 0027 00 00 00 00 		.1byte	0x93
+ 558 0029 00 00 00 00 		.1byte	0x2
+ 559 002b 00 06       		.4byte	0x0
+ 560 002c 50          		.4byte	0x0
+ 561 002c 93          	.LLST4:
+ 562 002d 02          		.4byte	.LFB5
+ 563 002d 51          		.4byte	.LCFI2
+ 564 002e 93          		.2byte	0x1
+ 565 002e 02          		.1byte	0x55
+ 566 002f 00 00 00 00 		.4byte	.LCFI2
+ 567 0031 00 00 00 00 		.4byte	.LFE5
+ 568                 		.2byte	0x2
+ 569 0033 00 00 00 00 		.1byte	0x75
+ 570 0035 00 00 00 00 		.1byte	0x2
+ 571 0037 00 01       		.4byte	0x0
+ 572 0038 55          		.4byte	0x0
+ 573 0038 00 00 00 00 	.LLST5:
+ 574 003a 00 00 00 00 		.4byte	.LVL6
+ 575 003c 00 02       		.4byte	.LVL7
+ 576 003d 75          		.2byte	0x1
+ 577 003e 02          		.1byte	0x51
+ 578 003e 00 00 00 00 		.4byte	.LVL7
+ 579 0040 00 00 00 00 		.4byte	.LFE5
+ 580                 		.2byte	0x2
+ 581 0042 00 00 00 00 		.1byte	0x76
+ 582 0044 00 00 00 00 		.1byte	0x0
+ 583 0046 00 01       		.4byte	0x0
+ 584 0047 51          		.4byte	0x0
+ 585 0048 00 00 00 00 	.LLST6:
+ 586 004a 00 00 00 00 		.4byte	.LFB4
+ 587 004c 00 02       		.4byte	.LCFI3
+ 588 004d 76          		.2byte	0x1
+ 589 004d 00          		.1byte	0x55
+ 590 004e 00 00 00 00 		.4byte	.LCFI3
+ 591 0050 00 00 00 00 		.4byte	.LFE4
+ 592                 		.2byte	0x2
+ 593 0052 00 00 00 00 		.1byte	0x75
+ 594 0054 00 00 00 00 		.1byte	0x8
+ 595 0056 00 01       		.4byte	0x0
+ 596 0057 55          		.4byte	0x0
+ 597 0057 00 00 00 00 	.LLST7:
+ 598 0059 00 00 00 00 		.4byte	.LFB3
+ 599 005b 00 02       		.4byte	.LCFI4
+ 600 005c 75          		.2byte	0x1
+ 601 005d 08          		.1byte	0x55
+ 602 005d 00 00 00 00 		.4byte	.LCFI4
+ 603 005f 00 00 00 00 		.4byte	.LFE3
+ 604                 		.2byte	0x2
+ 605 0061 00 00 00 00 		.1byte	0x75
+ 606 0063 00 00 00 00 		.1byte	0x6
+ 607 0065 00 01       		.4byte	0x0
+ 608 0066 55          		.4byte	0x0
+ 609 0067 00 00 00 00 	.LLST8:
+ 610 0069 00 00 00 00 		.4byte	.LVL8
+ 611 006b 00 02       		.4byte	.LVL9
+ 612 006c 75          		.2byte	0x1
+ 613 006c 06          		.1byte	0x51
+ 614 006d 00 00 00 00 		.4byte	.LVL9
+ 615 006f 00 00 00 00 		.4byte	.LFE3
+ 616                 		.2byte	0x2
+ 617 0071 00 00 00 00 		.1byte	0x76
+ 618 0073 00 00 00 00 		.1byte	0x2
+ 619 0075 00 01       		.4byte	0x0
+ 620 0076 51          		.4byte	0x0
+ 621 0076 00 00 00 00 	.LLST9:
+ 622 0078 00 00 00 00 		.4byte	.LFB2
+ 623 007a 00 02       		.4byte	.LCFI5
+ 624 007b 76          		.2byte	0x1
+ 625 007c 02          		.1byte	0x55
+ 626 007c 00 00 00 00 		.4byte	.LCFI5
+ 627 007e 00 00 00 00 		.4byte	.LFE2
+ 628                 		.2byte	0x2
+ 629 0080 00 00 00 00 		.1byte	0x75
+ 630 0082 00 00 00 00 		.1byte	0x3
+ 631 0084 00 01       		.4byte	0x0
+ 632 0085 55          		.4byte	0x0
+ 633 0086 00 00 00 00 	.LLST10:
+ 634 0088 00 00 00 00 		.4byte	.LVL10
+ 635 008a 00 02       		.4byte	.LVL11
+ 636 008b 75          		.2byte	0x1
+ 637 008b 03          		.1byte	0x51
+ 638 008c 00 00 00 00 		.4byte	0x0
+ 639 008e 00 00 00 00 		.4byte	0x0
+ 640                 	.LLST11:
+ 641 0090 00 00 00 00 		.4byte	.LVL13
+ 642 0092 00 00 00 00 		.4byte	.LVL14
+ 643 0094 00 01       		.2byte	0x6
+ 644 0095 51          		.1byte	0x50
+ 645 0095 00 00 00 00 		.1byte	0x93
+ 646 0097 00 00 00 00 		.1byte	0x2
+ 647                 		.1byte	0x51
+ 648 0099 00 00 00 00 		.1byte	0x93
+ 649 009b 00 00 00 00 		.1byte	0x2
+ 650 009d 00 06       		.4byte	.LVL16
+ 651 009e 50          		.4byte	.LVL17
+ 652 009f 93          		.2byte	0x6
+ 653 009f 02          		.1byte	0x50
+ 654 00a0 51          		.1byte	0x93
+ 655 00a0 93          		.1byte	0x2
+ 656 00a1 02          		.1byte	0x51
+ 657 00a1 00 00 00 00 		.1byte	0x93
+ 658 00a3 00 00 00 00 		.1byte	0x2
+ 659 00a5 00 06       		.4byte	.LVL18
+ 660 00a6 50          		.4byte	.LFE2
+ 661 00a7 93          		.2byte	0x6
+ 662 00a7 02          		.1byte	0x50
+ 663 00a8 51          		.1byte	0x93
+ 664 00a8 93          		.1byte	0x2
+ 665 00a9 02          		.1byte	0x51
+ 666 00a9 00 00 00 00 		.1byte	0x93
+ 667 00ab 00 00 00 00 		.1byte	0x2
+ 668 00ad 00 06       		.4byte	0x0
+ 669 00ae 50          		.4byte	0x0
+ 670 00af 93          		.file 2 "C:/CSR_uEnergy_SDK-2.3.0.31/tools/include/CSR101x_A05/types.h"
+ 671 00af 02          		.file 3 "C:/CSR_uEnergy_SDK-2.3.0.31/tools/include/CSR101x_A05/pio.h"
+ 672 00b0 51          		.file 4 "C:/CSR_uEnergy_SDK-2.3.0.31/tools/include/CSR101x_A05/timer.h"
+ 673 00b0 93          		.file 5 "app_gatt.h"
+ 674 00b1 02          		.file 6 "glucose_sensor_hw.h"
+ 675 00b1 00 00 00 00 		.section	.debug_info
+ 676 00b3 00 00 00 00 		.4byte	0x498
+ 677                 		.2byte	0x2
+ 678                 		.4byte	.Ldebug_abbrev0
+ 679                 		.1byte	0x4
+ 680                 		.1byte	0x1
+ 681                 		.4byte	.LASF104
+ 682                 		.1byte	0x1
+ 683 0000 00 00 04 98 		.4byte	.LASF105
+ 684 0002 00 02       		.4byte	.LASF106
+ 685 0003 00 00 00 00 		.4byte	0x0
+ 686 0005 04          		.4byte	0x0
+ 687 0005 01          		.4byte	.Ldebug_ranges0+0x0
+ 688 0006 00 00 00 00 		.4byte	.Ldebug_line0
+ 689 0008 01          		.1byte	0x2
+ 690 0008 00 00 00 00 		.4byte	.LASF0
+ 691 000a 00 00 00 00 		.1byte	0x2
+ 692 000c 00 00 00 00 		.1byte	0x1e
+ 693 000e 00 00 00 00 		.4byte	0x34
+ 694 0010 00 00 00 00 		.1byte	0x3
+ 695 0012 00 00 00 00 		.1byte	0x2
+ 696 0014 02          		.1byte	0x8
+ 697 0015 00 00 00 00 		.4byte	.LASF2
+ 698 0017 02          		.1byte	0x2
+ 699 0017 1E          		.4byte	.LASF1
+ 700 0018 00 00 00 34 		.1byte	0x2
+ 701 001a 03          		.1byte	0x1f
+ 702 001a 02          		.4byte	0x46
+ 703 001b 08          		.1byte	0x3
+ 704 001b 00 00 00 00 		.1byte	0x2
+ 705 001d 02          		.1byte	0x7
+ 706 001e 00 00 00 00 		.4byte	.LASF3
+ 707 0020 02          		.1byte	0x2
+ 708 0020 1F          		.4byte	.LASF4
+ 709 0021 00 00 00 46 		.1byte	0x2
+ 710 0023 03          		.1byte	0x20
+ 711 0023 02          		.4byte	0x58
+ 712 0024 07          		.1byte	0x3
+ 713 0024 00 00 00 00 		.1byte	0x4
+ 714 0026 02          		.1byte	0x7
+ 715 0027 00 00 00 00 		.4byte	.LASF5
+ 716 0029 02          		.1byte	0x3
+ 717 0029 20          		.1byte	0x2
+ 718 002a 00 00 00 58 		.1byte	0x6
+ 719 002c 03          		.4byte	.LASF6
+ 720 002c 04          		.1byte	0x3
+ 721 002d 07          		.1byte	0x2
+ 722 002d 00 00 00 00 		.1byte	0x5
+ 723 002f 03          		.4byte	.LASF7
+ 724 0030 02          		.1byte	0x3
+ 725 0030 06          		.1byte	0x4
+ 726 0031 00 00 00 00 		.1byte	0x5
+ 727 0033 03          		.4byte	.LASF8
+ 728 0033 02          		.1byte	0x3
+ 729 0034 05          		.1byte	0x2
+ 730 0034 00 00 00 00 		.1byte	0x7
+ 731 0036 03          		.4byte	.LASF9
+ 732 0037 04          		.1byte	0x4
+ 733 0037 05          		.1byte	0x2
+ 734 0038 00 00 00 00 		.1byte	0x7
+ 735 003a 03          		.1byte	0x5
+ 736 003a 02          		.1byte	0x2
+ 737 003b 07          		.1byte	0x3
+ 738 003b 00 00 00 00 		.1byte	0x1b
+ 739 003d 04          		.4byte	0x11d
+ 740 003e 02          		.1byte	0x6
+ 741 003e 07          		.4byte	.LASF10
+ 742 003f 05          		.1byte	0x0
+ 743 003f 02          		.1byte	0x6
+ 744 0040 03          		.4byte	.LASF11
+ 745 0040 1B          		.1byte	0x1
+ 746 0041 00 00 01 1D 		.1byte	0x6
+ 747 0043 06          		.4byte	.LASF12
+ 748 0043 00 00 00 00 		.1byte	0x3
+ 749 0045 00          		.1byte	0x6
+ 750 0046 06          		.4byte	.LASF13
+ 751 0046 00 00 00 00 		.1byte	0x4
+ 752 0048 01          		.1byte	0x6
+ 753 0049 06          		.4byte	.LASF14
+ 754 0049 00 00 00 00 		.1byte	0x5
+ 755 004b 03          		.1byte	0x6
+ 756 004c 06          		.4byte	.LASF15
+ 757 004c 00 00 00 00 		.1byte	0x6
+ 758 004e 04          		.1byte	0x6
+ 759 004f 06          		.4byte	.LASF16
+ 760 004f 00 00 00 00 		.1byte	0x7
+ 761 0051 05          		.1byte	0x6
+ 762 0052 06          		.4byte	.LASF17
+ 763 0052 00 00 00 00 		.1byte	0x8
+ 764 0054 06          		.1byte	0x6
+ 765 0055 06          		.4byte	.LASF18
+ 766 0055 00 00 00 00 		.1byte	0x9
+ 767 0057 07          		.1byte	0x6
+ 768 0058 06          		.4byte	.LASF19
+ 769 0058 00 00 00 00 		.1byte	0xa
+ 770 005a 08          		.1byte	0x6
+ 771 005b 06          		.4byte	.LASF20
+ 772 005b 00 00 00 00 		.1byte	0xb
+ 773 005d 09          		.1byte	0x6
+ 774 005e 06          		.4byte	.LASF21
+ 775 005e 00 00 00 00 		.1byte	0xc
+ 776 0060 0A          		.1byte	0x6
+ 777 0061 06          		.4byte	.LASF22
+ 778 0061 00 00 00 00 		.1byte	0xd
+ 779 0063 0B          		.1byte	0x6
+ 780 0064 06          		.4byte	.LASF23
+ 781 0064 00 00 00 00 		.1byte	0xe
+ 782 0066 0C          		.1byte	0x6
+ 783 0067 06          		.4byte	.LASF24
+ 784 0067 00 00 00 00 		.1byte	0xf
+ 785 0069 0D          		.1byte	0x6
+ 786 006a 06          		.4byte	.LASF25
+ 787 006a 00 00 00 00 		.1byte	0x10
+ 788 006c 0E          		.1byte	0x6
+ 789 006d 06          		.4byte	.LASF26
+ 790 006d 00 00 00 00 		.1byte	0x11
+ 791 006f 0F          		.1byte	0x6
+ 792 0070 06          		.4byte	.LASF27
+ 793 0070 00 00 00 00 		.1byte	0x12
+ 794 0072 10          		.1byte	0x6
+ 795 0073 06          		.4byte	.LASF28
+ 796 0073 00 00 00 00 		.1byte	0x13
+ 797 0075 11          		.1byte	0x6
+ 798 0076 06          		.4byte	.LASF29
+ 799 0076 00 00 00 00 		.1byte	0x14
+ 800 0078 12          		.1byte	0x6
+ 801 0079 06          		.4byte	.LASF30
+ 802 0079 00 00 00 00 		.1byte	0x15
+ 803 007b 13          		.1byte	0x6
+ 804 007c 06          		.4byte	.LASF31
+ 805 007c 00 00 00 00 		.1byte	0x16
+ 806 007e 14          		.1byte	0x6
+ 807 007f 06          		.4byte	.LASF32
+ 808 007f 00 00 00 00 		.1byte	0x17
+ 809 0081 15          		.1byte	0x6
+ 810 0082 06          		.4byte	.LASF33
+ 811 0082 00 00 00 00 		.1byte	0x18
+ 812 0084 16          		.1byte	0x6
+ 813 0085 06          		.4byte	.LASF34
+ 814 0085 00 00 00 00 		.1byte	0x19
+ 815 0087 17          		.1byte	0x0
+ 816 0088 06          		.1byte	0x5
+ 817 0088 00 00 00 00 		.1byte	0x2
+ 818 008a 18          		.1byte	0x3
+ 819 008b 06          		.1byte	0x90
+ 820 008b 00 00 00 00 		.4byte	0x150
+ 821 008d 19          		.1byte	0x6
+ 822 008e 00          		.4byte	.LASF35
+ 823 008e 05          		.1byte	0x0
+ 824 008f 02          		.1byte	0x6
+ 825 008f 03          		.4byte	.LASF36
+ 826 0090 90          		.1byte	0x1
+ 827 0090 00 00 01 50 		.1byte	0x6
+ 828 0092 06          		.4byte	.LASF37
+ 829 0093 00 00 00 00 		.1byte	0x3
+ 830 0095 00          		.1byte	0x6
+ 831 0095 06          		.4byte	.LASF38
+ 832 0096 00 00 00 00 		.1byte	0x5
+ 833 0098 01          		.1byte	0x6
+ 834 0098 06          		.4byte	.LASF39
+ 835 0099 00 00 00 00 		.1byte	0x7
+ 836 009b 03          		.1byte	0x6
+ 837 009b 06          		.4byte	.LASF40
+ 838 009c 00 00 00 00 		.1byte	0x9
+ 839 009e 05          		.1byte	0x6
+ 840 009e 06          		.4byte	.LASF41
+ 841 009f 00 00 00 00 		.1byte	0xd
+ 842 00a1 07          		.1byte	0x0
+ 843 00a1 06          		.1byte	0x5
+ 844 00a2 00 00 00 00 		.1byte	0x2
+ 845 00a4 09          		.1byte	0x3
+ 846 00a4 06          		.1byte	0xa7
+ 847 00a5 00 00 00 00 		.4byte	0x183
+ 848 00a7 0D          		.1byte	0x6
+ 849 00a7 00          		.4byte	.LASF42
+ 850 00a8 05          		.1byte	0x0
+ 851 00a8 02          		.1byte	0x6
+ 852 00a9 03          		.4byte	.LASF43
+ 853 00a9 A7          		.1byte	0x1
+ 854 00aa 00 00 01 83 		.1byte	0x6
+ 855 00ac 06          		.4byte	.LASF44
+ 856 00ac 00 00 00 00 		.1byte	0x3
+ 857 00ae 00          		.1byte	0x6
+ 858 00af 06          		.4byte	.LASF45
+ 859 00af 00 00 00 00 		.1byte	0x5
+ 860 00b1 01          		.1byte	0x6
+ 861 00b2 06          		.4byte	.LASF46
+ 862 00b2 00 00 00 00 		.1byte	0x7
+ 863 00b4 03          		.1byte	0x6
+ 864 00b5 06          		.4byte	.LASF47
+ 865 00b5 00 00 00 00 		.1byte	0x9
+ 866 00b7 05          		.1byte	0x6
+ 867 00b8 06          		.4byte	.LASF48
+ 868 00b8 00 00 00 00 		.1byte	0xd
+ 869 00ba 07          		.1byte	0x0
+ 870 00bb 06          		.1byte	0x5
+ 871 00bb 00 00 00 00 		.1byte	0x2
+ 872 00bd 09          		.1byte	0x3
+ 873 00be 06          		.1byte	0xb9
+ 874 00be 00 00 00 00 		.4byte	0x1a4
+ 875 00c0 0D          		.1byte	0x6
+ 876 00c1 00          		.4byte	.LASF49
+ 877 00c1 05          		.1byte	0x0
+ 878 00c2 02          		.1byte	0x6
+ 879 00c2 03          		.4byte	.LASF50
+ 880 00c3 B9          		.1byte	0x1
+ 881 00c3 00 00 01 A4 		.1byte	0x6
+ 882 00c5 06          		.4byte	.LASF51
+ 883 00c6 00 00 00 00 		.1byte	0x2
+ 884 00c8 00          		.1byte	0x6
+ 885 00c8 06          		.4byte	.LASF52
+ 886 00c9 00 00 00 00 		.1byte	0x3
+ 887 00cb 01          		.1byte	0x0
+ 888 00cb 06          		.1byte	0x7
+ 889 00cc 00 00 00 00 		.1byte	0x2
+ 890 00ce 02          		.1byte	0x3
+ 891 00ce 06          		.2byte	0x1a3
+ 892 00cf 00 00 00 00 		.4byte	0x1c6
+ 893 00d1 03          		.1byte	0x6
+ 894 00d1 00          		.4byte	.LASF53
+ 895 00d2 07          		.1byte	0x0
+ 896 00d2 02          		.1byte	0x6
+ 897 00d3 03          		.4byte	.LASF54
+ 898 00d3 01 A3       		.1byte	0x1
+ 899 00d4 00 00 01 C6 		.1byte	0x6
+ 900 00d6 06          		.4byte	.LASF55
+ 901 00d7 00 00 00 00 		.1byte	0x2
+ 902 00d9 00          		.1byte	0x6
+ 903 00d9 06          		.4byte	.LASF56
+ 904 00da 00 00 00 00 		.1byte	0x3
+ 905 00dc 01          		.1byte	0x0
+ 906 00dc 06          		.1byte	0x2
+ 907 00dd 00 00 00 00 		.4byte	.LASF57
+ 908 00df 02          		.1byte	0x4
+ 909 00df 06          		.1byte	0x1f
+ 910 00e0 00 00 00 00 		.4byte	0x3b
+ 911 00e2 03          		.1byte	0x5
+ 912 00e2 00          		.1byte	0x2
+ 913 00e3 02          		.1byte	0x5
+ 914 00e3 00 00 00 00 		.1byte	0x72
+ 915 00e5 04          		.4byte	0x228
+ 916 00e6 1F          		.1byte	0x6
+ 917 00e6 00 00 00 3B 		.4byte	.LASF58
+ 918 00e8 05          		.1byte	0x0
+ 919 00e9 02          		.1byte	0x6
+ 920 00e9 05          		.4byte	.LASF59
+ 921 00ea 72          		.1byte	0x1
+ 922 00ea 00 00 02 28 		.1byte	0x6
+ 923 00ec 06          		.4byte	.LASF60
+ 924 00ed 00 00 00 00 		.1byte	0x2
+ 925 00ef 00          		.1byte	0x6
+ 926 00ef 06          		.4byte	.LASF61
+ 927 00f0 00 00 00 00 		.1byte	0x3
+ 928 00f2 01          		.1byte	0x6
+ 929 00f2 06          		.4byte	.LASF62
+ 930 00f3 00 00 00 00 		.1byte	0x4
+ 931 00f5 02          		.1byte	0x6
+ 932 00f5 06          		.4byte	.LASF63
+ 933 00f6 00 00 00 00 		.1byte	0x5
+ 934 00f8 03          		.1byte	0x6
+ 935 00f8 06          		.4byte	.LASF64
+ 936 00f9 00 00 00 00 		.1byte	0x6
+ 937 00fb 04          		.1byte	0x6
+ 938 00fb 06          		.4byte	.LASF65
+ 939 00fc 00 00 00 00 		.1byte	0x7
+ 940 00fe 05          		.1byte	0x6
+ 941 00fe 06          		.4byte	.LASF66
+ 942 00ff 00 00 00 00 		.1byte	0x8
+ 943 0101 06          		.1byte	0x6
+ 944 0101 06          		.4byte	.LASF67
+ 945 0102 00 00 00 00 		.1byte	0x9
+ 946 0104 07          		.1byte	0x6
+ 947 0104 06          		.4byte	.LASF68
+ 948 0105 00 00 00 00 		.1byte	0xa
+ 949 0107 08          		.1byte	0x6
+ 950 0107 06          		.4byte	.LASF69
+ 951 0108 00 00 00 00 		.1byte	0xb
+ 952 010a 09          		.1byte	0x6
+ 953 010a 06          		.4byte	.LASF70
+ 954 010b 00 00 00 00 		.1byte	0xc
+ 955 010d 0A          		.1byte	0x0
+ 956 010d 06          		.1byte	0x5
+ 957 010e 00 00 00 00 		.1byte	0x2
+ 958 0110 0B          		.1byte	0x6
+ 959 0110 06          		.1byte	0x70
+ 960 0111 00 00 00 00 		.4byte	0x24f
+ 961 0113 0C          		.1byte	0x6
+ 962 0113 00          		.4byte	.LASF71
+ 963 0114 05          		.1byte	0x0
+ 964 0114 02          		.1byte	0x6
+ 965 0115 06          		.4byte	.LASF72
+ 966 0115 70          		.1byte	0x1
+ 967 0116 00 00 02 4F 		.1byte	0x6
+ 968 0118 06          		.4byte	.LASF73
+ 969 0118 00 00 00 00 		.1byte	0x2
+ 970 011a 00          		.1byte	0x6
+ 971 011b 06          		.4byte	.LASF74
+ 972 011b 00 00 00 00 		.1byte	0x3
+ 973 011d 01          		.1byte	0x6
+ 974 011e 06          		.4byte	.LASF75
+ 975 011e 00 00 00 00 		.1byte	0x4
+ 976 0120 02          		.1byte	0x0
+ 977 0121 06          		.1byte	0x2
+ 978 0121 00 00 00 00 		.4byte	.LASF76
+ 979 0123 03          		.1byte	0x6
+ 980 0124 06          		.1byte	0x7a
+ 981 0124 00 00 00 00 		.4byte	0x228
+ 982 0126 04          		.1byte	0x8
+ 983 0127 00          		.1byte	0x8
+ 984 0127 02          		.1byte	0x6
+ 985 0128 00 00 00 00 		.1byte	0x7f
+ 986 012a 06          		.4byte	0x29b
+ 987 012a 7A          		.1byte	0x9
+ 988 012b 00 00 02 28 		.4byte	.LASF77
+ 989 012d 08          		.1byte	0x6
+ 990 012d 08          		.1byte	0x82
+ 991 012e 06          		.4byte	0x1c6
+ 992 012e 7F          		.1byte	0x2
+ 993 012f 00 00 02 9B 		.1byte	0x23
+ 994 0131 09          		.1byte	0x0
+ 995 0131 00 00 00 00 		.1byte	0x9
+ 996 0133 06          		.4byte	.LASF78
+ 997 0134 82          		.1byte	0x6
+ 998 0134 00 00 01 C6 		.1byte	0x86
+ 999 0136 02          		.4byte	0x1c6
+ 1000 0137 23          		.1byte	0x2
+ 1001 0137 00          		.1byte	0x23
+ 1002 0138 09          		.1byte	0x1
+ 1003 0138 00 00 00 00 		.1byte	0x9
+ 1004 013a 06          		.4byte	.LASF79
+ 1005 013b 86          		.1byte	0x6
+ 1006 013b 00 00 01 C6 		.1byte	0x8a
+ 1007 013d 02          		.4byte	0x24f
+ 1008 013e 23          		.1byte	0x2
+ 1009 013e 01          		.1byte	0x23
+ 1010 013f 09          		.1byte	0x2
+ 1011 013f 00 00 00 00 		.1byte	0x9
+ 1012 0141 06          		.4byte	.LASF80
+ 1013 0142 8A          		.1byte	0x6
+ 1014 0142 00 00 02 4F 		.1byte	0x90
+ 1015 0144 02          		.4byte	0x3b
+ 1016 0145 23          		.1byte	0x2
+ 1017 0145 02          		.1byte	0x23
+ 1018 0146 09          		.1byte	0x3
+ 1019 0146 00 00 00 00 		.1byte	0x0
+ 1020 0148 06          		.1byte	0x2
+ 1021 0149 90          		.4byte	.LASF81
+ 1022 0149 00 00 00 3B 		.1byte	0x6
+ 1023 014b 02          		.1byte	0x92
+ 1024 014c 23          		.4byte	0x25a
+ 1025 014c 03          		.1byte	0x5
+ 1026 014d 00          		.1byte	0x2
+ 1027 014d 02          		.1byte	0x6
+ 1028 014e 00 00 00 00 		.1byte	0x96
+ 1029 0150 06          		.4byte	0x2c1
+ 1030 0150 92          		.1byte	0x6
+ 1031 0151 00 00 02 5A 		.4byte	.LASF82
+ 1032 0153 05          		.1byte	0x0
+ 1033 0153 02          		.1byte	0x6
+ 1034 0154 06          		.4byte	.LASF83
+ 1035 0154 96          		.1byte	0x1
+ 1036 0155 00 00 02 C1 		.1byte	0x6
+ 1037 0157 06          		.4byte	.LASF84
+ 1038 0157 00 00 00 00 		.1byte	0x2
+ 1039 0159 00          		.1byte	0x0
+ 1040 015a 06          		.1byte	0x2
+ 1041 015a 00 00 00 00 		.4byte	.LASF85
+ 1042 015c 01          		.1byte	0x6
+ 1043 015d 06          		.1byte	0x9d
+ 1044 015d 00 00 00 00 		.4byte	0x2a6
+ 1045 015f 02          		.1byte	0xa
+ 1046 0160 00          		.1byte	0x1
+ 1047 0160 02          		.4byte	.LASF86
+ 1048 0161 00 00 00 00 		.1byte	0x1
+ 1049 0163 06          		.2byte	0x1fb
+ 1050 0163 9D          		.1byte	0x1
+ 1051 0164 00 00 02 A6 		.4byte	.LFB7
+ 1052 0166 0A          		.4byte	.LFE7
+ 1053 0166 01          		.1byte	0x1
+ 1054 0167 00 00 00 00 		.1byte	0x55
+ 1055 0169 01          		.4byte	0x2f3
+ 1056 0169 01 FB       		.1byte	0xb
+ 1057 016a 01          		.4byte	.LASF88
+ 1058 016b 00 00 00 00 		.1byte	0x1
+ 1059 016d 00 00 00 00 		.2byte	0x1fa
+ 1060 016f 01          		.4byte	0x2c1
+ 1061 016f 55          		.1byte	0x1
+ 1062 0170 00 00 02 F3 		.1byte	0x51
+ 1063 0172 0B          		.1byte	0x0
+ 1064 0172 00 00 00 00 		.1byte	0xc
+ 1065 0174 01          		.1byte	0x1
+ 1066 0175 01 FA       		.4byte	.LASF100
+ 1067 0176 00 00 02 C1 		.1byte	0x1
+ 1068 0178 01          		.2byte	0x1e5
+ 1069 0178 51          		.1byte	0x1
+ 1070 0179 00          		.4byte	.LFB6
+ 1071 0179 0C          		.4byte	.LFE6
+ 1072 017a 01          		.4byte	.LLST1
+ 1073 017a 00 00 00 00 		.1byte	0xd
+ 1074 017c 01          		.1byte	0x1
+ 1075 017d 01 E5       		.4byte	.LASF87
+ 1076 017e 01          		.1byte	0x1
+ 1077 017e 00 00 00 00 		.2byte	0x235
+ 1078 0180 00 00 00 00 		.1byte	0x1
+ 1079 0182 00 00 00 00 		.4byte	.LFB8
+ 1080 0184 0D          		.4byte	.LFE8
+ 1081 0185 01          		.4byte	.LLST2
+ 1082 0185 00 00 00 00 		.4byte	0x34a
+ 1083 0187 01          		.1byte	0xe
+ 1084 0188 02 35       		.4byte	.LASF89
+ 1085 0189 01          		.1byte	0x1
+ 1086 0189 00 00 00 00 		.2byte	0x234
+ 1087 018b 00 00 00 00 		.4byte	0x4d
+ 1088 018d 00 00 00 00 		.4byte	.LLST3
+ 1089 018f 00 00 03 4A 		.1byte	0xf
+ 1090 0191 0E          		.4byte	.LBB2
+ 1091 0192 00 00 00 00 		.4byte	.LBE2
+ 1092 0194 01          		.1byte	0x10
+ 1093 0194 02 34       		.4byte	.LASF91
+ 1094 0195 00 00 00 4D 		.1byte	0x1
+ 1095 0197 00 00 00 00 		.2byte	0x23a
+ 1096 0199 0F          		.4byte	0x4d
+ 1097 019a 00 00 00 00 		.1byte	0x0
+ 1098 019c 00 00 00 00 		.1byte	0x0
+ 1099 019e 10          		.1byte	0xd
+ 1100 019e 00 00 00 00 		.1byte	0x1
+ 1101 01a0 01          		.4byte	.LASF90
+ 1102 01a1 02 3A       		.1byte	0x1
+ 1103 01a2 00 00 00 4D 		.2byte	0x154
+ 1104 01a4 00          		.1byte	0x1
+ 1105 01a4 00          		.4byte	.LFB5
+ 1106 01a5 0D          		.4byte	.LFE5
+ 1107 01a5 01          		.4byte	.LLST4
+ 1108 01a6 00 00 00 00 		.4byte	0x3df
+ 1109 01a8 01          		.1byte	0x11
+ 1110 01a8 01 54       		.ascii "num\000"
+ 1111 01a9 01          		.1byte	0x1
+ 1112 01aa 00 00 00 00 		.2byte	0x153
+ 1113 01ac 00 00 00 00 		.4byte	0x29
+ 1114 01ae 00 00 00 00 		.4byte	.LLST5
+ 1115 01b0 00 00 03 DF 		.1byte	0x10
+ 1116 01b2 11          		.4byte	.LASF92
+ 1117 01b2 6E 75 6D 00 		.1byte	0x1
+ 1118 01b4 01          		.2byte	0x155
+ 1119 01b5 01 53       		.4byte	0x29
+ 1120 01b6 00 00 00 29 		.1byte	0x10
+ 1121 01b8 00 00 00 00 		.4byte	.LASF93
+ 1122 01ba 10          		.1byte	0x1
+ 1123 01ba 00 00 00 00 		.2byte	0x156
+ 1124 01bc 01          		.4byte	0x29
+ 1125 01bd 01 55       		.1byte	0x10
+ 1126 01be 00 00 00 29 		.4byte	.LASF94
+ 1127 01c0 10          		.1byte	0x1
+ 1128 01c0 00 00 00 00 		.2byte	0x157
+ 1129 01c2 01          		.4byte	0x3df
+ 1130 01c3 01 56       		.1byte	0x10
+ 1131 01c4 00 00 00 29 		.4byte	.LASF95
+ 1132 01c6 10          		.1byte	0x1
+ 1133 01c6 00 00 00 00 		.2byte	0x158
+ 1134 01c8 01          		.4byte	0x3ef
+ 1135 01c9 01 57       		.1byte	0x10
+ 1136 01ca 00 00 03 DF 		.4byte	.LASF96
+ 1137 01cc 10          		.1byte	0x1
+ 1138 01cc 00 00 00 00 		.2byte	0x159
+ 1139 01ce 01          		.4byte	0x3b
+ 1140 01cf 01 58       		.1byte	0x10
+ 1141 01d0 00 00 03 EF 		.4byte	.LASF97
+ 1142 01d2 10          		.1byte	0x1
+ 1143 01d2 00 00 00 00 		.2byte	0x15a
+ 1144 01d4 01          		.4byte	0x3b
+ 1145 01d5 01 59       		.1byte	0x10
+ 1146 01d6 00 00 00 3B 		.4byte	.LASF98
+ 1147 01d8 10          		.1byte	0x1
+ 1148 01d8 00 00 00 00 		.2byte	0x15b
+ 1149 01da 01          		.4byte	0x3b
+ 1150 01db 01 5A       		.1byte	0xf
+ 1151 01dc 00 00 00 3B 		.4byte	.LBB3
+ 1152 01de 10          		.4byte	.LBE3
+ 1153 01de 00 00 00 00 		.1byte	0x10
+ 1154 01e0 01          		.4byte	.LASF99
+ 1155 01e1 01 5B       		.1byte	0x1
+ 1156 01e2 00 00 00 3B 		.2byte	0x182
+ 1157 01e4 0F          		.4byte	0x29
+ 1158 01e4 00 00 00 00 		.1byte	0x0
+ 1159 01e6 00 00 00 00 		.1byte	0x0
+ 1160 01e8 10          		.1byte	0x12
+ 1161 01e9 00 00 00 00 		.4byte	0x29
+ 1162 01eb 01          		.4byte	0x3ef
+ 1163 01eb 01 82       		.1byte	0x13
+ 1164 01ec 00 00 00 29 		.4byte	0x7b
+ 1165 01ee 00          		.1byte	0x6
+ 1166 01ef 00          		.1byte	0x0
+ 1167 01ef 12          		.1byte	0x12
+ 1168 01f0 00 00 00 29 		.4byte	0x29
+ 1169 01f2 00 00 03 EF 		.4byte	0x3ff
+ 1170 01f4 13          		.1byte	0x13
+ 1171 01f4 00 00 00 7B 		.4byte	0x7b
+ 1172 01f6 06          		.1byte	0xd
+ 1173 01f7 00          		.1byte	0x0
+ 1174 01f7 12          		.1byte	0xc
+ 1175 01f8 00 00 00 29 		.1byte	0x1
+ 1176 01fa 00 00 03 FF 		.4byte	.LASF101
+ 1177 01fc 13          		.1byte	0x1
+ 1178 01fc 00 00 00 7B 		.2byte	0x111
+ 1179 01fe 0D          		.1byte	0x1
+ 1180 01ff 00          		.4byte	.LFB4
+ 1181 01ff 0C          		.4byte	.LFE4
+ 1182 0200 01          		.4byte	.LLST6
+ 1183 0200 00 00 00 00 		.1byte	0x14
+ 1184 0202 01          		.1byte	0x1
+ 1185 0203 01 11       		.4byte	.LASF102
+ 1186 0204 01          		.1byte	0x1
+ 1187 0204 00 00 00 00 		.1byte	0xc2
+ 1188 0206 00 00 00 00 		.1byte	0x1
+ 1189 0208 00 00 00 00 		.4byte	.LFB3
+ 1190 020a 14          		.4byte	.LFE3
+ 1191 020b 01          		.4byte	.LLST7
+ 1192 020b 00 00 00 00 		.4byte	0x452
+ 1193 020d 01          		.1byte	0x15
+ 1194 020e C2          		.4byte	.LASF79
+ 1195 020e 01          		.1byte	0x1
+ 1196 020f 00 00 00 00 		.1byte	0xc1
+ 1197 0211 00 00 00 00 		.4byte	0x24f
+ 1198 0213 00 00 00 00 		.4byte	.LLST8
+ 1199 0215 00 00 04 52 		.1byte	0x16
+ 1200 0217 15          		.4byte	.LASF103
+ 1201 0217 00 00 00 00 		.1byte	0x1
+ 1202 0219 01          		.1byte	0xc4
+ 1203 021a C1          		.4byte	0x4d
+ 1204 021a 00 00 02 4F 		.1byte	0x8
+ 1205 021c 00 00 00 00 		.1byte	0x76
+ 1206 021e 16          		.1byte	0x3
+ 1207 021f 00 00 00 00 		.1byte	0x93
+ 1208 0221 01          		.1byte	0x1
+ 1209 0221 C4          		.1byte	0x76
+ 1210 0222 00 00 00 4D 		.1byte	0x4
+ 1211 0224 08          		.1byte	0x93
+ 1212 0224 76          		.1byte	0x1
+ 1213 0225 03          		.1byte	0x0
+ 1214 0225 93          		.1byte	0x17
+ 1215 0226 01          		.4byte	.LASF107
+ 1216 0226 76          		.1byte	0x1
+ 1217 0227 04          		.1byte	0x43
+ 1218 0227 93          		.1byte	0x1
+ 1219 0228 01          		.4byte	.LFB2
+ 1220 0228 00          		.4byte	.LFE2
+ 1221 0229 17          		.4byte	.LLST9
+ 1222 0229 00 00 00 00 		.4byte	0x489
+ 1223 022b 01          		.1byte	0x18
+ 1224 022c 43          		.ascii "tid\000"
+ 1225 022c 01          		.1byte	0x1
+ 1226 022d 00 00 00 00 		.1byte	0x42
+ 1227 022f 00 00 00 00 		.4byte	0x1c6
+ 1228 0231 00 00 00 00 		.4byte	.LLST10
+ 1229 0233 00 00 04 89 		.1byte	0x19
+ 1230 0235 18          		.4byte	.LASF103
+ 1231 0235 74 69 64 00 		.1byte	0x1
+ 1232 0237 01          		.1byte	0x44
+ 1233 0238 42          		.4byte	0x4d
+ 1234 0238 00 00 01 C6 		.4byte	.LLST11
+ 1235 023a 00 00 00 00 		.1byte	0x0
+ 1236 023c 19          		.1byte	0x1a
+ 1237 023d 00 00 00 00 		.4byte	.LASF108
+ 1238 023f 01          		.1byte	0x1
+ 1239 023f 44          		.1byte	0x24
+ 1240 0240 00 00 00 4D 		.4byte	0x29b
+ 1241 0242 00 00 00 00 		.1byte	0x1
+ 1242 0244 00          		.1byte	0x5
+ 1243 0244 1A          		.1byte	0x3
+ 1244 0245 00 00 00 00 		.4byte	g_app_hw_data
+ 1245 0247 01          		.1byte	0x0
+ 1246 0247 24          		.section	.debug_abbrev
+ 1247 0248 00 00 02 9B 		.1byte	0x1
+ 1248 024a 01          		.1byte	0x11
+ 1249 024a 05          		.1byte	0x1
+ 1250 024b 03          		.1byte	0x25
+ 1251 024b 00 00 00 00 		.1byte	0xe
+ 1252 024d 00          		.1byte	0x13
+ 1253                 		.1byte	0xb
+ 1254 0000 01          		.1byte	0x3
+ 1255 0000 11          		.1byte	0xe
+ 1256 0001 01          		.1byte	0x1b
+ 1257 0001 25          		.1byte	0xe
+ 1258 0002 0E          		.1byte	0x11
+ 1259 0002 13          		.1byte	0x1
+ 1260 0003 0B          		.1byte	0x52
+ 1261 0003 03          		.1byte	0x1
+ 1262 0004 0E          		.1byte	0x55
+ 1263 0004 1B          		.1byte	0x6
+ 1264 0005 0E          		.1byte	0x10
+ 1265 0005 11          		.1byte	0x6
+ 1266 0006 01          		.1byte	0x0
+ 1267 0006 52          		.1byte	0x0
+ 1268 0007 01          		.1byte	0x2
+ 1269 0007 55          		.1byte	0x16
+ 1270 0008 06          		.1byte	0x0
+ 1271 0008 10          		.1byte	0x3
+ 1272 0009 06          		.1byte	0xe
+ 1273 0009 00          		.1byte	0x3a
+ 1274 000a 00          		.1byte	0xb
+ 1275 000a 02          		.1byte	0x3b
+ 1276 000b 16          		.1byte	0xb
+ 1277 000b 00          		.1byte	0x49
+ 1278 000c 03          		.1byte	0x13
+ 1279 000c 0E          		.1byte	0x0
+ 1280 000d 3A          		.1byte	0x0
+ 1281 000d 0B          		.1byte	0x3
+ 1282 000e 3B          		.1byte	0x24
+ 1283 000e 0B          		.1byte	0x0
+ 1284 000f 49          		.1byte	0xb
+ 1285 000f 13          		.1byte	0xb
+ 1286 0010 00          		.1byte	0x3e
+ 1287 0010 00          		.1byte	0xb
+ 1288 0011 03          		.1byte	0x3
+ 1289 0011 24          		.1byte	0xe
+ 1290 0012 00          		.1byte	0x0
+ 1291 0012 0B          		.1byte	0x0
+ 1292 0013 0B          		.1byte	0x4
+ 1293 0013 3E          		.1byte	0x24
+ 1294 0014 0B          		.1byte	0x0
+ 1295 0014 03          		.1byte	0xb
+ 1296 0015 0E          		.1byte	0xb
+ 1297 0015 00          		.1byte	0x3e
+ 1298 0016 00          		.1byte	0xb
+ 1299 0016 04          		.1byte	0x0
+ 1300 0017 24          		.1byte	0x0
+ 1301 0017 00          		.1byte	0x5
+ 1302 0018 0B          		.1byte	0x4
+ 1303 0018 0B          		.1byte	0x1
+ 1304 0019 3E          		.1byte	0xb
+ 1305 0019 0B          		.1byte	0xb
+ 1306 001a 00          		.1byte	0x3a
+ 1307 001a 00          		.1byte	0xb
+ 1308 001b 05          		.1byte	0x3b
+ 1309 001b 04          		.1byte	0xb
+ 1310 001c 01          		.1byte	0x1
+ 1311 001c 0B          		.1byte	0x13
+ 1312 001d 0B          		.1byte	0x0
+ 1313 001d 3A          		.1byte	0x0
+ 1314 001e 0B          		.1byte	0x6
+ 1315 001e 3B          		.1byte	0x28
+ 1316 001f 0B          		.1byte	0x0
+ 1317 001f 01          		.1byte	0x3
+ 1318 0020 13          		.1byte	0xe
+ 1319 0020 00          		.1byte	0x1c
+ 1320 0021 00          		.1byte	0xd
+ 1321 0021 06          		.1byte	0x0
+ 1322 0022 28          		.1byte	0x0
+ 1323 0022 00          		.1byte	0x7
+ 1324 0023 03          		.1byte	0x4
+ 1325 0023 0E          		.1byte	0x1
+ 1326 0024 1C          		.1byte	0xb
+ 1327 0024 0D          		.1byte	0xb
+ 1328 0025 00          		.1byte	0x3a
+ 1329 0025 00          		.1byte	0xb
+ 1330 0026 07          		.1byte	0x3b
+ 1331 0026 04          		.1byte	0x5
+ 1332 0027 01          		.1byte	0x1
+ 1333 0027 0B          		.1byte	0x13
+ 1334 0028 0B          		.1byte	0x0
+ 1335 0028 3A          		.1byte	0x0
+ 1336 0029 0B          		.1byte	0x8
+ 1337 0029 3B          		.1byte	0x13
+ 1338 002a 05          		.1byte	0x1
+ 1339 002a 01          		.1byte	0xb
+ 1340 002b 13          		.1byte	0xb
+ 1341 002b 00          		.1byte	0x3a
+ 1342 002c 00          		.1byte	0xb
+ 1343 002c 08          		.1byte	0x3b
+ 1344 002d 13          		.1byte	0xb
+ 1345 002d 01          		.1byte	0x1
+ 1346 002e 0B          		.1byte	0x13
+ 1347 002e 0B          		.1byte	0x0
+ 1348 002f 3A          		.1byte	0x0
+ 1349 002f 0B          		.1byte	0x9
+ 1350 0030 3B          		.1byte	0xd
+ 1351 0030 0B          		.1byte	0x0
+ 1352 0031 01          		.1byte	0x3
+ 1353 0031 13          		.1byte	0xe
+ 1354 0032 00          		.1byte	0x3a
+ 1355 0032 00          		.1byte	0xb
+ 1356 0033 09          		.1byte	0x3b
+ 1357 0033 0D          		.1byte	0xb
+ 1358 0034 00          		.1byte	0x49
+ 1359 0034 03          		.1byte	0x13
+ 1360 0035 0E          		.1byte	0x38
+ 1361 0035 3A          		.1byte	0xa
+ 1362 0036 0B          		.1byte	0x0
+ 1363 0036 3B          		.1byte	0x0
+ 1364 0037 0B          		.1byte	0xa
+ 1365 0037 49          		.1byte	0x2e
+ 1366 0038 13          		.1byte	0x1
+ 1367 0038 38          		.1byte	0x3f
+ 1368 0039 0A          		.1byte	0xc
+ 1369 0039 00          		.1byte	0x3
+ 1370 003a 00          		.1byte	0xe
+ 1371 003a 0A          		.1byte	0x3a
+ 1372 003b 2E          		.1byte	0xb
+ 1373 003b 01          		.1byte	0x3b
+ 1374 003c 3F          		.1byte	0x5
+ 1375 003c 0C          		.1byte	0x27
+ 1376 003d 03          		.1byte	0xc
+ 1377 003d 0E          		.1byte	0x11
+ 1378 003e 3A          		.1byte	0x1
+ 1379 003e 0B          		.1byte	0x12
+ 1380 003f 3B          		.1byte	0x1
+ 1381 003f 05          		.1byte	0x40
+ 1382 0040 27          		.1byte	0xa
+ 1383 0040 0C          		.1byte	0x1
+ 1384 0041 11          		.1byte	0x13
+ 1385 0041 01          		.1byte	0x0
+ 1386 0042 12          		.1byte	0x0
+ 1387 0042 01          		.1byte	0xb
+ 1388 0043 40          		.1byte	0x5
+ 1389 0043 0A          		.1byte	0x0
+ 1390 0044 01          		.1byte	0x3
+ 1391 0044 13          		.1byte	0xe
+ 1392 0045 00          		.1byte	0x3a
+ 1393 0045 00          		.1byte	0xb
+ 1394 0046 0B          		.1byte	0x3b
+ 1395 0046 05          		.1byte	0x5
+ 1396 0047 00          		.1byte	0x49
+ 1397 0047 03          		.1byte	0x13
+ 1398 0048 0E          		.1byte	0x2
+ 1399 0048 3A          		.1byte	0xa
+ 1400 0049 0B          		.1byte	0x0
+ 1401 0049 3B          		.1byte	0x0
+ 1402 004a 05          		.1byte	0xc
+ 1403 004a 49          		.1byte	0x2e
+ 1404 004b 13          		.1byte	0x0
+ 1405 004b 02          		.1byte	0x3f
+ 1406 004c 0A          		.1byte	0xc
+ 1407 004c 00          		.1byte	0x3
+ 1408 004d 00          		.1byte	0xe
+ 1409 004d 0C          		.1byte	0x3a
+ 1410 004e 2E          		.1byte	0xb
+ 1411 004e 00          		.1byte	0x3b
+ 1412 004f 3F          		.1byte	0x5
+ 1413 004f 0C          		.1byte	0x27
+ 1414 0050 03          		.1byte	0xc
+ 1415 0050 0E          		.1byte	0x11
+ 1416 0051 3A          		.1byte	0x1
+ 1417 0051 0B          		.1byte	0x12
+ 1418 0052 3B          		.1byte	0x1
+ 1419 0052 05          		.1byte	0x40
+ 1420 0053 27          		.1byte	0x6
+ 1421 0053 0C          		.1byte	0x0
+ 1422 0054 11          		.1byte	0x0
+ 1423 0054 01          		.1byte	0xd
+ 1424 0055 12          		.1byte	0x2e
+ 1425 0055 01          		.1byte	0x1
+ 1426 0056 40          		.1byte	0x3f
+ 1427 0056 06          		.1byte	0xc
+ 1428 0057 00          		.1byte	0x3
+ 1429 0057 00          		.1byte	0xe
+ 1430 0058 0D          		.1byte	0x3a
+ 1431 0058 2E          		.1byte	0xb
+ 1432 0059 01          		.1byte	0x3b
+ 1433 0059 3F          		.1byte	0x5
+ 1434 005a 0C          		.1byte	0x27
+ 1435 005a 03          		.1byte	0xc
+ 1436 005b 0E          		.1byte	0x11
+ 1437 005b 3A          		.1byte	0x1
+ 1438 005c 0B          		.1byte	0x12
+ 1439 005c 3B          		.1byte	0x1
+ 1440 005d 05          		.1byte	0x40
+ 1441 005d 27          		.1byte	0x6
+ 1442 005e 0C          		.1byte	0x1
+ 1443 005e 11          		.1byte	0x13
+ 1444 005f 01          		.1byte	0x0
+ 1445 005f 12          		.1byte	0x0
+ 1446 0060 01          		.1byte	0xe
+ 1447 0060 40          		.1byte	0x5
+ 1448 0061 06          		.1byte	0x0
+ 1449 0061 01          		.1byte	0x3
+ 1450 0062 13          		.1byte	0xe
+ 1451 0062 00          		.1byte	0x3a
+ 1452 0063 00          		.1byte	0xb
+ 1453 0063 0E          		.1byte	0x3b
+ 1454 0064 05          		.1byte	0x5
+ 1455 0064 00          		.1byte	0x49
+ 1456 0065 03          		.1byte	0x13
+ 1457 0065 0E          		.1byte	0x2
+ 1458 0066 3A          		.1byte	0x6
+ 1459 0066 0B          		.1byte	0x0
+ 1460 0067 3B          		.1byte	0x0
+ 1461 0067 05          		.1byte	0xf
+ 1462 0068 49          		.1byte	0xb
+ 1463 0068 13          		.1byte	0x1
+ 1464 0069 02          		.1byte	0x11
+ 1465 0069 06          		.1byte	0x1
+ 1466 006a 00          		.1byte	0x12
+ 1467 006a 00          		.1byte	0x1
+ 1468 006b 0F          		.1byte	0x0
+ 1469 006b 0B          		.1byte	0x0
+ 1470 006c 01          		.1byte	0x10
+ 1471 006c 11          		.1byte	0x34
+ 1472 006d 01          		.1byte	0x0
+ 1473 006d 12          		.1byte	0x3
+ 1474 006e 01          		.1byte	0xe
+ 1475 006e 00          		.1byte	0x3a
+ 1476 006f 00          		.1byte	0xb
+ 1477 006f 10          		.1byte	0x3b
+ 1478 0070 34          		.1byte	0x5
+ 1479 0070 00          		.1byte	0x49
+ 1480 0071 03          		.1byte	0x13
+ 1481 0071 0E          		.1byte	0x0
+ 1482 0072 3A          		.1byte	0x0
+ 1483 0072 0B          		.1byte	0x11
+ 1484 0073 3B          		.1byte	0x5
+ 1485 0073 05          		.1byte	0x0
+ 1486 0074 49          		.1byte	0x3
+ 1487 0074 13          		.1byte	0x8
+ 1488 0075 00          		.1byte	0x3a
+ 1489 0075 00          		.1byte	0xb
+ 1490 0076 11          		.1byte	0x3b
+ 1491 0076 05          		.1byte	0x5
+ 1492 0077 00          		.1byte	0x49
+ 1493 0077 03          		.1byte	0x13
+ 1494 0078 08          		.1byte	0x2
+ 1495 0078 3A          		.1byte	0x6
+ 1496 0079 0B          		.1byte	0x0
+ 1497 0079 3B          		.1byte	0x0
+ 1498 007a 05          		.1byte	0x12
+ 1499 007a 49          		.1byte	0x1
+ 1500 007b 13          		.1byte	0x1
+ 1501 007b 02          		.1byte	0x49
+ 1502 007c 06          		.1byte	0x13
+ 1503 007c 00          		.1byte	0x1
+ 1504 007d 00          		.1byte	0x13
+ 1505 007d 12          		.1byte	0x0
+ 1506 007e 01          		.1byte	0x0
+ 1507 007e 01          		.1byte	0x13
+ 1508 007f 49          		.1byte	0x21
+ 1509 007f 13          		.1byte	0x0
+ 1510 0080 01          		.1byte	0x49
+ 1511 0080 13          		.1byte	0x13
+ 1512 0081 00          		.1byte	0x2f
+ 1513 0081 00          		.1byte	0xb
+ 1514 0082 13          		.1byte	0x0
+ 1515 0082 21          		.1byte	0x0
+ 1516 0083 00          		.1byte	0x14
+ 1517 0083 49          		.1byte	0x2e
+ 1518 0084 13          		.1byte	0x1
+ 1519 0084 2F          		.1byte	0x3f
+ 1520 0085 0B          		.1byte	0xc
+ 1521 0085 00          		.1byte	0x3
+ 1522 0086 00          		.1byte	0xe
+ 1523 0086 14          		.1byte	0x3a
+ 1524 0087 2E          		.1byte	0xb
+ 1525 0087 01          		.1byte	0x3b
+ 1526 0088 3F          		.1byte	0xb
+ 1527 0088 0C          		.1byte	0x27
+ 1528 0089 03          		.1byte	0xc
+ 1529 0089 0E          		.1byte	0x11
+ 1530 008a 3A          		.1byte	0x1
+ 1531 008a 0B          		.1byte	0x12
+ 1532 008b 3B          		.1byte	0x1
+ 1533 008b 0B          		.1byte	0x40
+ 1534 008c 27          		.1byte	0x6
+ 1535 008c 0C          		.1byte	0x1
+ 1536 008d 11          		.1byte	0x13
+ 1537 008d 01          		.1byte	0x0
+ 1538 008e 12          		.1byte	0x0
+ 1539 008e 01          		.1byte	0x15
+ 1540 008f 40          		.1byte	0x5
+ 1541 008f 06          		.1byte	0x0
+ 1542 0090 01          		.1byte	0x3
+ 1543 0090 13          		.1byte	0xe
+ 1544 0091 00          		.1byte	0x3a
+ 1545 0091 00          		.1byte	0xb
+ 1546 0092 15          		.1byte	0x3b
+ 1547 0092 05          		.1byte	0xb
+ 1548 0093 00          		.1byte	0x49
+ 1549 0093 03          		.1byte	0x13
+ 1550 0094 0E          		.1byte	0x2
+ 1551 0094 3A          		.1byte	0x6
+ 1552 0095 0B          		.1byte	0x0
+ 1553 0095 3B          		.1byte	0x0
+ 1554 0096 0B          		.1byte	0x16
+ 1555 0096 49          		.1byte	0x34
+ 1556 0097 13          		.1byte	0x0
+ 1557 0097 02          		.1byte	0x3
+ 1558 0098 06          		.1byte	0xe
+ 1559 0098 00          		.1byte	0x3a
+ 1560 0099 00          		.1byte	0xb
+ 1561 0099 16          		.1byte	0x3b
+ 1562 009a 34          		.1byte	0xb
+ 1563 009a 00          		.1byte	0x49
+ 1564 009b 03          		.1byte	0x13
+ 1565 009b 0E          		.1byte	0x2
+ 1566 009c 3A          		.1byte	0xa
+ 1567 009c 0B          		.1byte	0x0
+ 1568 009d 3B          		.1byte	0x0
+ 1569 009d 0B          		.1byte	0x17
+ 1570 009e 49          		.1byte	0x2e
+ 1571 009e 13          		.1byte	0x1
+ 1572 009f 02          		.1byte	0x3
+ 1573 009f 0A          		.1byte	0xe
+ 1574 00a0 00          		.1byte	0x3a
+ 1575 00a0 00          		.1byte	0xb
+ 1576 00a1 17          		.1byte	0x3b
+ 1577 00a1 2E          		.1byte	0xb
+ 1578 00a2 01          		.1byte	0x27
+ 1579 00a2 03          		.1byte	0xc
+ 1580 00a3 0E          		.1byte	0x11
+ 1581 00a3 3A          		.1byte	0x1
+ 1582 00a4 0B          		.1byte	0x12
+ 1583 00a4 3B          		.1byte	0x1
+ 1584 00a5 0B          		.1byte	0x40
+ 1585 00a5 27          		.1byte	0x6
+ 1586 00a6 0C          		.1byte	0x1
+ 1587 00a6 11          		.1byte	0x13
+ 1588 00a7 01          		.1byte	0x0
+ 1589 00a7 12          		.1byte	0x0
+ 1590 00a8 01          		.1byte	0x18
+ 1591 00a8 40          		.1byte	0x5
+ 1592 00a9 06          		.1byte	0x0
+ 1593 00a9 01          		.1byte	0x3
+ 1594 00aa 13          		.1byte	0x8
+ 1595 00aa 00          		.1byte	0x3a
+ 1596 00ab 00          		.1byte	0xb
+ 1597 00ab 18          		.1byte	0x3b
+ 1598 00ac 05          		.1byte	0xb
+ 1599 00ac 00          		.1byte	0x49
+ 1600 00ad 03          		.1byte	0x13
+ 1601 00ad 08          		.1byte	0x2
+ 1602 00ae 3A          		.1byte	0x6
+ 1603 00ae 0B          		.1byte	0x0
+ 1604 00af 3B          		.1byte	0x0
+ 1605 00af 0B          		.1byte	0x19
+ 1606 00b0 49          		.1byte	0x34
+ 1607 00b0 13          		.1byte	0x0
+ 1608 00b1 02          		.1byte	0x3
+ 1609 00b1 06          		.1byte	0xe
+ 1610 00b2 00          		.1byte	0x3a
+ 1611 00b2 00          		.1byte	0xb
+ 1612 00b3 19          		.1byte	0x3b
+ 1613 00b3 34          		.1byte	0xb
+ 1614 00b4 00          		.1byte	0x49
+ 1615 00b4 03          		.1byte	0x13
+ 1616 00b5 0E          		.1byte	0x2
+ 1617 00b5 3A          		.1byte	0x6
+ 1618 00b6 0B          		.1byte	0x0
+ 1619 00b6 3B          		.1byte	0x0
+ 1620 00b7 0B          		.1byte	0x1a
+ 1621 00b7 49          		.1byte	0x34
+ 1622 00b8 13          		.1byte	0x0
+ 1623 00b8 02          		.1byte	0x3
+ 1624 00b9 06          		.1byte	0xe
+ 1625 00b9 00          		.1byte	0x3a
+ 1626 00ba 00          		.1byte	0xb
+ 1627 00ba 1A          		.1byte	0x3b
+ 1628 00bb 34          		.1byte	0xb
+ 1629 00bb 00          		.1byte	0x49
+ 1630 00bc 03          		.1byte	0x13
+ 1631 00bc 0E          		.1byte	0x3f
+ 1632 00bd 3A          		.1byte	0xc
+ 1633 00bd 0B          		.1byte	0x2
+ 1634 00be 3B          		.1byte	0xa
+ 1635 00be 0B          		.1byte	0x0
+ 1636 00bf 49          		.1byte	0x0
+ 1637 00bf 13          		.1byte	0x0
+ 1638 00c0 3F          		.section	.debug_pubnames,"",@progbits
+ 1639 00c0 0C          		.4byte	0xa2
+ 1640 00c1 02          		.2byte	0x2
+ 1641 00c1 0A          		.4byte	.Ldebug_info0
+ 1642 00c2 00          		.4byte	0x49c
+ 1643 00c2 00          		.4byte	0x2cc
+ 1644 00c3 00          		.ascii "SetIndication\000"
+ 1645                 		.4byte	0x2f3
+ 1646 0000 00 00 00 A2 		.ascii "AppHwDataInit\000"
+ 1647 0002 00 02       		.4byte	0x309
+ 1648 0003 00 00 00 00 		.ascii "HandlePIOChangedEvent\000"
+ 1649 0005 00 00 04 9C 		.4byte	0x34a
+ 1650 0007 00 00 02 CC 		.ascii "FormulateNAddGlucoseMeasData\000"
+ 1651 0009 53 65 74 49 		.4byte	0x3ff
+ 1651      6E 64 69 63 
+ 1651      61 74 69 6F 
+ 1651      6E 00 
+ 1652 0010 00 00 02 F3 		.ascii "InitGSHardware\000"
+ 1653 0012 41 70 70 48 		.4byte	0x415
+ 1653      77 44 61 74 
+ 1653      61 49 6E 69 
+ 1653      74 00 
+ 1654 0019 00 00 03 09 		.ascii "SoundBuzzer\000"
+ 1655 001b 48 61 6E 64 		.4byte	0x489
+ 1655      6C 65 50 49 
+ 1655      4F 43 68 61 
+ 1655      6E 67 65 64 
+ 1655      45 76 65 6E 
+ 1656 0026 00 00 03 4A 		.ascii "g_app_hw_data\000"
+ 1657 0028 46 6F 72 6D 		.4byte	0x0
+ 1657      75 6C 61 74 
+ 1657      65 4E 41 64 
+ 1657      64 47 6C 75 
+ 1657      63 6F 73 65 
+ 1658 0036 00 00 03 FF 		.section	.debug_aranges,"",@progbits
+ 1659 0038 49 6E 69 74 		.4byte	0x4c
+ 1659      47 53 48 61 
+ 1659      72 64 77 61 
+ 1659      72 65 00 
+ 1660 0040 00 00 04 15 		.2byte	0x2
+ 1661 0042 53 6F 75 6E 		.4byte	.Ldebug_info0
+ 1661      64 42 75 7A 
+ 1661      7A 65 72 00 
+ 1662 0048 00 00 04 89 		.1byte	0x4
+ 1663 004a 67 5F 61 70 		.1byte	0x0
+ 1663      70 5F 68 77 
+ 1663      5F 64 61 74 
+ 1663      61 00 
+ 1664 0051 00 00 00 00 		.2byte	0x0
+ 1665                 		.2byte	0x0
+ 1666 0000 00 00 00 4C 		.4byte	.LFB7
+ 1667 0002 00 02       		.4byte	.LFE7-.LFB7
+ 1668 0003 00 00 00 00 		.4byte	.LFB6
+ 1669 0005 04          		.4byte	.LFE6-.LFB6
+ 1670 0005 00          		.4byte	.LFB8
+ 1671 0006 00 00       		.4byte	.LFE8-.LFB8
+ 1672 0007 00 00       		.4byte	.LFB5
+ 1673 0008 00 00 00 00 		.4byte	.LFE5-.LFB5
+ 1674 000a 00 00 00 01 		.4byte	.LFB4
+ 1675 000c 00 00 00 00 		.4byte	.LFE4-.LFB4
+ 1676 000e 00 00 00 00 		.4byte	.LFB3
+ 1677 0010 00 00 00 00 		.4byte	.LFE3-.LFB3
+ 1678 0012 00 00 00 00 		.4byte	.LFB2
+ 1679 0014 00 00 00 00 		.4byte	.LFE2-.LFB2
+ 1680 0016 00 00 00 00 		.4byte	0x0
+ 1681 0018 00 00 00 00 		.4byte	0x0
+ 1682 001a 00 00 00 00 		.section	.debug_ranges,"",@progbits
+ 1683 001c 00 00 00 00 	.Ldebug_ranges0:
+ 1684 001e 00 00 00 00 		.4byte	.Ltext0
+ 1685 0020 00 00 00 00 		.4byte	.Letext0
+ 1686 0022 00 00 00 00 		.4byte	.LFB7
+ 1687 0024 00 00 00 00 		.4byte	.LFE7
+ 1688 0026 00 00 00 00 		.4byte	.LFB6
+ 1689                 		.4byte	.LFE6
+ 1690                 		.4byte	.LFB8
+ 1691 0000 00 00 00 00 		.4byte	.LFE8
+ 1692 0002 00 00 00 00 		.4byte	.LFB5
+ 1693 0004 00 00 00 00 		.4byte	.LFE5
+ 1694 0006 00 00 00 00 		.4byte	.LFB4
+ 1695 0008 00 00 00 00 		.4byte	.LFE4
+ 1696 000a 00 00 00 00 		.4byte	.LFB3
+ 1697 000c 00 00 00 00 		.4byte	.LFE3
+ 1698 000e 00 00 00 00 		.4byte	.LFB2
+ 1699 0010 00 00 00 00 		.4byte	.LFE2
+ 1700 0012 00 00 00 00 		.4byte	0x0
+ 1701 0014 00 00 00 00 		.4byte	0x0
+ 1702 0016 00 00 00 00 		.section	.debug_str,"MS",@progbits,1
+ 1703 0018 00 00 00 00 	.LASF34:
+ 1704 001a 00 00 00 00 		.ascii "pio_mode_ana_mon_clk_pio\000"
+ 1705 001c 00 00 00 00 	.LASF94:
+ 1706 001e 00 00 00 00 		.ascii "mData\000"
+ 1707 0020 00 00 00 00 	.LASF22:
+ 1708 0022 00 00 00 00 		.ascii "pio_mode_radio_rx_en\000"
+ 1709                 	.LASF69:
+ 1710                 		.ascii "app_panic_invalid_state\000"
+ 1711 0000 70 69 6F 5F 	.LASF79:
+ 1711      6D 6F 64 65 
+ 1711      5F 61 6E 61 
+ 1711      5F 6D 6F 6E 
+ 1711      5F 63 6C 6B 
+ 1712                 		.ascii "beep_type\000"
+ 1713 000c 6D 44 61 74 	.LASF90:
+ 1713      61 00 
+ 1714                 		.ascii "FormulateNAddGlucoseMeasData\000"
+ 1715 000f 70 69 6F 5F 	.LASF12:
+ 1715      6D 6F 64 65 
+ 1715      5F 72 61 64 
+ 1715      69 6F 5F 72 
+ 1715      78 5F 65 6E 
+ 1716                 		.ascii "pio_mode_clk_req\000"
+ 1717 001a 61 70 70 5F 	.LASF30:
+ 1717      70 61 6E 69 
+ 1717      63 5F 69 6E 
+ 1717      76 61 6C 69 
+ 1717      64 5F 73 74 
+ 1718                 		.ascii "pio_mode_i2c_data\000"
+ 1719 0026 62 65 65 70 	.LASF88:
+ 1719      5F 74 79 70 
+ 1719      65 00 
+ 1720                 		.ascii "state\000"
+ 1721 002b 46 6F 72 6D 	.LASF104:
+ 1721      75 6C 61 74 
+ 1721      65 4E 41 64 
+ 1721      64 47 6C 75 
+ 1721      63 6F 73 65 
+ 1722                 		.ascii "GNU C 4.3.4 CSR version 22 for xap [1468380]\000"
+ 1723 0039 70 69 6F 5F 	.LASF84:
+ 1723      6D 6F 64 65 
+ 1723      5F 63 6C 6B 
+ 1723      5F 72 65 71 
+ 1723      00 
+ 1724                 		.ascii "connected_ind\000"
+ 1725 0042 70 69 6F 5F 	.LASF98:
+ 1725      6D 6F 64 65 
+ 1725      5F 69 32 63 
+ 1725      5F 64 61 74 
+ 1725      61 00 
+ 1726                 		.ascii "random_val\000"
+ 1727 004b 73 74 61 74 	.LASF105:
+ 1727      65 00 
+ 1728                 		.ascii "glucose_sensor_hw.c\000"
+ 1729 004e 47 4E 55 20 	.LASF42:
+ 1729      43 20 34 2E 
+ 1729      33 2E 34 20 
+ 1729      43 53 52 20 
+ 1729      76 65 72 73 
+ 1730                 		.ascii "pio_i2c_pull_mode_no_pulls\000"
+ 1731 0064 63 6F 6E 6E 	.LASF89:
+ 1731      65 63 74 65 
+ 1731      64 5F 69 6E 
+ 1731      64 00 
+ 1732                 		.ascii "pio_changed\000"
+ 1733 006b 72 61 6E 64 	.LASF27:
+ 1733      6F 6D 5F 76 
+ 1733      61 6C 00 
+ 1734                 		.ascii "pio_mode_pio_control_rxd\000"
+ 1735 0071 67 6C 75 63 	.LASF7:
+ 1735      6F 73 65 5F 
+ 1735      73 65 6E 73 
+ 1735      6F 72 5F 68 
+ 1735      77 2E 63 00 
+ 1736                 		.ascii "short int\000"
+ 1737 007b 70 69 6F 5F 	.LASF24:
+ 1737      69 32 63 5F 
+ 1737      70 75 6C 6C 
+ 1737      5F 6D 6F 64 
+ 1737      65 5F 6E 6F 
+ 1738                 		.ascii "pio_mode_nvm_power_en\000"
+ 1739 0088 70 69 6F 5F 	.LASF92:
+ 1739      63 68 61 6E 
+ 1739      67 65 64 00 
+ 1740                 		.ascii "mFlag\000"
+ 1741 008e 70 69 6F 5F 	.LASF87:
+ 1741      6D 6F 64 65 
+ 1741      5F 70 69 6F 
+ 1741      5F 63 6F 6E 
+ 1741      74 72 6F 6C 
+ 1742                 		.ascii "HandlePIOChangedEvent\000"
+ 1743 009b 73 68 6F 72 	.LASF103:
+ 1743      74 20 69 6E 
+ 1743      74 00 
+ 1744                 		.ascii "beep_timer\000"
+ 1745 00a0 70 69 6F 5F 	.LASF0:
+ 1745      6D 6F 64 65 
+ 1745      5F 6E 76 6D 
+ 1745      5F 70 6F 77 
+ 1745      65 72 5F 65 
+ 1746                 		.ascii "uint8\000"
+ 1747 00ab 6D 46 6C 61 	.LASF107:
+ 1747      67 00 
+ 1748                 		.ascii "appBuzzerTimerHandler\000"
+ 1749 00ae 48 61 6E 64 	.LASF49:
+ 1749      6C 65 50 49 
+ 1749      4F 43 68 61 
+ 1749      6E 67 65 64 
+ 1749      45 76 65 6E 
+ 1750                 		.ascii "pio_event_mode_disable\000"
+ 1751 00b9 62 65 65 70 	.LASF71:
+ 1751      5F 74 69 6D 
+ 1751      65 72 00 
+ 1752                 		.ascii "beep_off\000"
+ 1753 00be 75 69 6E 74 	.LASF83:
+ 1753      38 00 
+ 1754                 		.ascii "advertising_ind\000"
+ 1755 00c1 61 70 70 42 	.LASF32:
+ 1755      75 7A 7A 65 
+ 1755      72 54 69 6D 
+ 1755      65 72 48 61 
+ 1755      6E 64 6C 65 
+ 1756                 		.ascii "pio_mode_uart_flow_ctrl\000"
+ 1757 00cc 70 69 6F 5F 	.LASF75:
+ 1757      65 76 65 6E 
+ 1757      74 5F 6D 6F 
+ 1757      64 65 5F 64 
+ 1757      69 73 61 62 
+ 1758                 		.ascii "beep_thrice\000"
+ 1759 00d8 62 65 65 70 	.LASF31:
+ 1759      5F 6F 66 66 
+ 1759      00 
+ 1760                 		.ascii "pio_mode_i2c_clock\000"
+ 1761 00dc 61 64 76 65 	.LASF80:
+ 1761      72 74 69 73 
+ 1761      69 6E 67 5F 
+ 1761      69 6E 64 00 
+ 1762                 		.ascii "beep_count\000"
+ 1763 00e4 70 69 6F 5F 	.LASF50:
+ 1763      6D 6F 64 65 
+ 1763      5F 75 61 72 
+ 1763      74 5F 66 6C 
+ 1763      6F 77 5F 63 
+ 1764                 		.ascii "pio_event_mode_rising\000"
+ 1765 00f0 62 65 65 70 	.LASF46:
+ 1765      5F 74 68 72 
+ 1765      69 63 65 00 
+ 1766                 		.ascii "pio_i2c_pull_mode_strong_pull_up\000"
+ 1767 00f6 70 69 6F 5F 	.LASF35:
+ 1767      6D 6F 64 65 
+ 1767      5F 69 32 63 
+ 1767      5F 63 6C 6F 
+ 1767      63 6B 00 
+ 1768                 		.ascii "pio_mode_no_pulls\000"
+ 1769 0100 62 65 65 70 	.LASF68:
+ 1769      5F 63 6F 75 
+ 1769      6E 74 00 
+ 1770                 		.ascii "app_panic_con_param_update\000"
+ 1771 0105 70 69 6F 5F 	.LASF55:
+ 1771      65 76 65 6E 
+ 1771      74 5F 6D 6F 
+ 1771      64 65 5F 72 
+ 1771      69 73 69 6E 
+ 1772                 		.ascii "pio_pwm_mode_open_source\000"
+ 1773 0110 70 69 6F 5F 	.LASF48:
+ 1773      69 32 63 5F 
+ 1773      70 75 6C 6C 
+ 1773      5F 6D 6F 64 
+ 1773      65 5F 73 74 
+ 1774                 		.ascii "pio_i2c_pull_mode_strong_sticky\000"
+ 1775 0121 70 69 6F 5F 	.LASF62:
+ 1775      6D 6F 64 65 
+ 1775      5F 6E 6F 5F 
+ 1775      70 75 6C 6C 
+ 1775      73 00 
+ 1776                 		.ascii "app_panic_db_registration\000"
+ 1777 012a 61 70 70 5F 	.LASF10:
+ 1777      70 61 6E 69 
+ 1777      63 5F 63 6F 
+ 1777      6E 5F 70 61 
+ 1777      72 61 6D 5F 
+ 1778                 		.ascii "pio_mode_user\000"
+ 1779 0137 70 69 6F 5F 	.LASF40:
+ 1779      70 77 6D 5F 
+ 1779      6D 6F 64 65 
+ 1779      5F 6F 70 65 
+ 1779      6E 5F 73 6F 
+ 1780                 		.ascii "pio_mode_weak_sticky\000"
+ 1781 0144 70 69 6F 5F 	.LASF17:
+ 1781      69 32 63 5F 
+ 1781      70 75 6C 6C 
+ 1781      5F 6D 6F 64 
+ 1781      65 5F 73 74 
+ 1782                 		.ascii "pio_mode_quadrature0\000"
+ 1783 0154 61 70 70 5F 	.LASF18:
+ 1783      70 61 6E 69 
+ 1783      63 5F 64 62 
+ 1783      5F 72 65 67 
+ 1783      69 73 74 72 
+ 1784                 		.ascii "pio_mode_quadrature1\000"
+ 1785 0161 70 69 6F 5F 	.LASF19:
+ 1785      6D 6F 64 65 
+ 1785      5F 75 73 65 
+ 1785      72 00 
+ 1786                 		.ascii "pio_mode_quadrature2\000"
+ 1787 0168 70 69 6F 5F 	.LASF20:
+ 1787      6D 6F 64 65 
+ 1787      5F 77 65 61 
+ 1787      6B 5F 73 74 
+ 1787      69 63 6B 79 
+ 1788                 		.ascii "pio_mode_quadrature3\000"
+ 1789 0172 70 69 6F 5F 	.LASF58:
+ 1789      6D 6F 64 65 
+ 1789      5F 71 75 61 
+ 1789      64 72 61 74 
+ 1789      75 72 65 30 
+ 1790                 		.ascii "app_panic_set_advert_params\000"
+ 1791 017d 70 69 6F 5F 	.LASF102:
+ 1791      6D 6F 64 65 
+ 1791      5F 71 75 61 
+ 1791      64 72 61 74 
+ 1791      75 72 65 31 
+ 1792                 		.ascii "SoundBuzzer\000"
+ 1793 0187 70 69 6F 5F 	.LASF86:
+ 1793      6D 6F 64 65 
+ 1793      5F 71 75 61 
+ 1793      64 72 61 74 
+ 1793      75 72 65 32 
+ 1794                 		.ascii "SetIndication\000"
+ 1795 0192 70 69 6F 5F 	.LASF2:
+ 1795      6D 6F 64 65 
+ 1795      5F 71 75 61 
+ 1795      64 72 61 74 
+ 1795      75 72 65 33 
+ 1796                 		.ascii "unsigned char\000"
+ 1797 019c 61 70 70 5F 	.LASF61:
+ 1797      70 61 6E 69 
+ 1797      63 5F 73 65 
+ 1797      74 5F 61 64 
+ 1797      76 65 72 74 
+ 1798                 		.ascii "app_panic_connection_est\000"
+ 1799 01aa 53 6F 75 6E 	.LASF29:
+ 1799      64 42 75 7A 
+ 1799      7A 65 72 00 
+ 1800                 		.ascii "pio_mode_ser_flash_csb\000"
+ 1801 01b0 53 65 74 49 	.LASF67:
+ 1801      6E 64 69 63 
+ 1801      61 74 69 6F 
+ 1801      6E 00 
+ 1802                 		.ascii "app_panic_add_whitelist\000"
+ 1803 01b7 75 6E 73 69 	.LASF96:
+ 1803      67 6E 65 64 
+ 1803      20 63 68 61 
+ 1803      72 00 
+ 1804                 		.ascii "mLen\000"
+ 1805 01be 61 70 70 5F 	.LASF64:
+ 1805      70 61 6E 69 
+ 1805      63 5F 63 6F 
+ 1805      6E 6E 65 63 
+ 1805      74 69 6F 6E 
+ 1806                 		.ascii "app_panic_nvm_write\000"
+ 1807 01cb 70 69 6F 5F 	.LASF6:
+ 1807      6D 6F 64 65 
+ 1807      5F 73 65 72 
+ 1807      5F 66 6C 61 
+ 1807      73 68 5F 63 
+ 1808                 		.ascii "signed char\000"
+ 1809 01d6 61 70 70 5F 	.LASF13:
+ 1809      70 61 6E 69 
+ 1809      63 5F 61 64 
+ 1809      64 5F 77 68 
+ 1809      69 74 65 6C 
+ 1810                 		.ascii "pio_mode_pwm0\000"
+ 1811 01e2 6D 4C 65 6E 	.LASF14:
+ 1811      00 
+ 1812                 		.ascii "pio_mode_pwm1\000"
+ 1813 01e5 61 70 70 5F 	.LASF15:
+ 1813      70 61 6E 69 
+ 1813      63 5F 6E 76 
+ 1813      6D 5F 77 72 
+ 1813      69 74 65 00 
+ 1814                 		.ascii "pio_mode_pwm2\000"
+ 1815 01ef 73 69 67 6E 	.LASF16:
+ 1815      65 64 20 63 
+ 1815      68 61 72 00 
+ 1816                 		.ascii "pio_mode_pwm3\000"
+ 1817 01f5 70 69 6F 5F 	.LASF9:
+ 1817      6D 6F 64 65 
+ 1817      5F 70 77 6D 
+ 1817      30 00 
+ 1818                 		.ascii "unsigned int\000"
+ 1819 01fc 70 69 6F 5F 	.LASF99:
+ 1819      6D 6F 64 65 
+ 1819      5F 70 77 6D 
+ 1819      31 00 
+ 1820                 		.ascii "random_error\000"
+ 1821 0203 70 69 6F 5F 	.LASF76:
+ 1821      6D 6F 64 65 
+ 1821      5F 70 77 6D 
+ 1821      32 00 
+ 1822                 		.ascii "buzzer_beep_type\000"
+ 1823 020a 70 69 6F 5F 	.LASF63:
+ 1823      6D 6F 64 65 
+ 1823      5F 70 77 6D 
+ 1823      33 00 
+ 1824                 		.ascii "app_panic_nvm_read\000"
+ 1825 0211 75 6E 73 69 	.LASF56:
+ 1825      67 6E 65 64 
+ 1825      20 69 6E 74 
+ 1825      00 
+ 1826                 		.ascii "pio_pwm_mode_inverted_push_pull\000"
+ 1827 0217 72 61 6E 64 	.LASF100:
+ 1827      6F 6D 5F 65 
+ 1827      72 72 6F 72 
+ 1827      00 
+ 1828                 		.ascii "AppHwDataInit\000"
+ 1829 021e 62 75 7A 7A 	.LASF3:
+ 1829      65 72 5F 62 
+ 1829      65 65 70 5F 
+ 1829      74 79 70 65 
+ 1829      00 
+ 1830                 		.ascii "short unsigned int\000"
+ 1831 0226 61 70 70 5F 	.LASF73:
+ 1831      70 61 6E 69 
+ 1831      63 5F 6E 76 
+ 1831      6D 5F 72 65 
+ 1831      61 64 00 
+ 1832                 		.ascii "beep_long\000"
+ 1833 0230 70 69 6F 5F 	.LASF38:
+ 1833      70 77 6D 5F 
+ 1833      6D 6F 64 65 
+ 1833      5F 69 6E 76 
+ 1833      65 72 74 65 
+ 1834                 		.ascii "pio_mode_strong_pull_down\000"
+ 1835 0240 41 70 70 48 	.LASF108:
+ 1835      77 44 61 74 
+ 1835      61 49 6E 69 
+ 1835      74 00 
+ 1836                 		.ascii "g_app_hw_data\000"
+ 1837 0247 73 68 6F 72 	.LASF91:
+ 1837      74 20 75 6E 
+ 1837      73 69 67 6E 
+ 1837      65 64 20 69 
+ 1837      6E 74 00 
+ 1838                 		.ascii "pios\000"
+ 1839 0250 62 65 65 70 	.LASF59:
+ 1839      5F 6C 6F 6E 
+ 1839      67 00 
+ 1840                 		.ascii "app_panic_set_advert_data\000"
+ 1841 0255 70 69 6F 5F 	.LASF8:
+ 1841      6D 6F 64 65 
+ 1841      5F 73 74 72 
+ 1841      6F 6E 67 5F 
+ 1841      70 75 6C 6C 
+ 1842                 		.ascii "long int\000"
+ 1843 0262 67 5F 61 70 	.LASF44:
+ 1843      70 5F 68 77 
+ 1843      5F 64 61 74 
+ 1843      61 00 
+ 1844                 		.ascii "pio_i2c_pull_mode_weak_pull_up\000"
+ 1845 0269 70 69 6F 73 	.LASF33:
+ 1845      00 
+ 1846                 		.ascii "pio_mode_pio_control_timer\000"
+ 1847 026c 61 70 70 5F 	.LASF57:
+ 1847      70 61 6E 69 
+ 1847      63 5F 73 65 
+ 1847      74 5F 61 64 
+ 1847      76 65 72 74 
+ 1848                 		.ascii "timer_id\000"
+ 1849 0279 6C 6F 6E 67 	.LASF37:
+ 1849      20 69 6E 74 
+ 1849      00 
+ 1850                 		.ascii "pio_mode_weak_pull_up\000"
+ 1851 027d 70 69 6F 5F 	.LASF51:
+ 1851      69 32 63 5F 
+ 1851      70 75 6C 6C 
+ 1851      5F 6D 6F 64 
+ 1851      65 5F 77 65 
+ 1852                 		.ascii "pio_event_mode_falling\000"
+ 1853 028d 70 69 6F 5F 	.LASF93:
+ 1853      6D 6F 64 65 
+ 1853      5F 70 69 6F 
+ 1853      5F 63 6F 6E 
+ 1853      74 72 6F 6C 
+ 1854                 		.ascii "cFlag\000"
+ 1855 029a 74 69 6D 65 	.LASF1:
+ 1855      72 5F 69 64 
+ 1855      00 
+ 1856                 		.ascii "uint16\000"
+ 1857 029f 70 69 6F 5F 	.LASF23:
+ 1857      6D 6F 64 65 
+ 1857      5F 77 65 61 
+ 1857      6B 5F 70 75 
+ 1857      6C 6C 5F 75 
+ 1858                 		.ascii "pio_mode_radio_tx_en\000"
+ 1859 02aa 70 69 6F 5F 	.LASF4:
+ 1859      65 76 65 6E 
+ 1859      74 5F 6D 6F 
+ 1859      64 65 5F 66 
+ 1859      61 6C 6C 69 
+ 1860                 		.ascii "uint32\000"
+ 1861 02b5 63 46 6C 61 	.LASF74:
+ 1861      67 00 
+ 1862                 		.ascii "beep_twice\000"
+ 1863 02b8 75 69 6E 74 	.LASF5:
+ 1863      31 36 00 
+ 1864                 		.ascii "long unsigned int\000"
+ 1865 02bc 70 69 6F 5F 	.LASF28:
+ 1865      6D 6F 64 65 
+ 1865      5F 72 61 64 
+ 1865      69 6F 5F 74 
+ 1865      78 5F 65 6E 
+ 1866                 		.ascii "pio_mode_ser_flash_dout\000"
+ 1867 02c6 75 69 6E 74 	.LASF85:
+ 1867      33 32 00 
+ 1868                 		.ascii "app_indication\000"
+ 1869 02ca 62 65 65 70 	.LASF101:
+ 1869      5F 74 77 69 
+ 1869      63 65 00 
+ 1870                 		.ascii "InitGSHardware\000"
+ 1871 02cf 6C 6F 6E 67 	.LASF60:
+ 1871      20 75 6E 73 
+ 1871      69 67 6E 65 
+ 1871      64 20 69 6E 
+ 1871      74 00 
+ 1872                 		.ascii "app_panic_set_scan_rsp_data\000"
+ 1873 02d8 70 69 6F 5F 	.LASF78:
+ 1873      6D 6F 64 65 
+ 1873      5F 73 65 72 
+ 1873      5F 66 6C 61 
+ 1873      73 68 5F 64 
+ 1874                 		.ascii "button_press_tid\000"
+ 1875 02e4 61 70 70 5F 	.LASF41:
+ 1875      69 6E 64 69 
+ 1875      63 61 74 69 
+ 1875      6F 6E 00 
+ 1876                 		.ascii "pio_mode_strong_sticky\000"
+ 1877 02ec 49 6E 69 74 	.LASF45:
+ 1877      47 53 48 61 
+ 1877      72 64 77 61 
+ 1877      72 65 00 
+ 1878                 		.ascii "pio_i2c_pull_mode_strong_pull_down\000"
+ 1879 02f3 61 70 70 5F 	.LASF77:
+ 1879      70 61 6E 69 
+ 1879      63 5F 73 65 
+ 1879      74 5F 73 63 
+ 1879      61 6E 5F 72 
+ 1880                 		.ascii "buzzer_tid\000"
+ 1881 0301 62 75 74 74 	.LASF54:
+ 1881      6F 6E 5F 70 
+ 1881      72 65 73 73 
+ 1881      5F 74 69 64 
+ 1881      00 
+ 1882                 		.ascii "pio_pwm_mode_open_drain\000"
+ 1883 030a 70 69 6F 5F 	.LASF25:
+ 1883      6D 6F 64 65 
+ 1883      5F 73 74 72 
+ 1883      6F 6E 67 5F 
+ 1883      73 74 69 63 
+ 1884                 		.ascii "pio_mode_pio_controller\000"
+ 1885 0315 70 69 6F 5F 	.LASF82:
+ 1885      69 32 63 5F 
+ 1885      70 75 6C 6C 
+ 1885      5F 6D 6F 64 
+ 1885      65 5F 73 74 
+ 1886                 		.ascii "stop_ind\000"
+ 1887 0327 62 75 7A 7A 	.LASF72:
+ 1887      65 72 5F 74 
+ 1887      69 64 00 
+ 1888                 		.ascii "beep_short\000"
+ 1889 032c 70 69 6F 5F 	.LASF53:
+ 1889      70 77 6D 5F 
+ 1889      6D 6F 64 65 
+ 1889      5F 6F 70 65 
+ 1889      6E 5F 64 72 
+ 1890                 		.ascii "pio_pwm_mode_push_pull\000"
+ 1891 0338 70 69 6F 5F 	.LASF11:
+ 1891      6D 6F 64 65 
+ 1891      5F 70 69 6F 
+ 1891      5F 63 6F 6E 
+ 1891      74 72 6F 6C 
+ 1892                 		.ascii "pio_mode_edge_capture\000"
+ 1893 0344 73 74 6F 70 	.LASF43:
+ 1893      5F 69 6E 64 
+ 1893      00 
+ 1894                 		.ascii "pio_i2c_pull_mode_weak_pull_down\000"
+ 1895 0349 62 65 65 70 	.LASF39:
+ 1895      5F 73 68 6F 
+ 1895      72 74 00 
+ 1896                 		.ascii "pio_mode_strong_pull_up\000"
+ 1897 034e 70 69 6F 5F 	.LASF106:
+ 1897      70 77 6D 5F 
+ 1897      6D 6F 64 65 
+ 1897      5F 70 75 73 
+ 1897      68 5F 70 75 
+ 1898                 		.ascii "C:\\Users\\bentr_000\\Desktop\\glucose_sensor\000"
+ 1899 035a 70 69 6F 5F 	.LASF97:
+ 1899      6D 6F 64 65 
+ 1899      5F 65 64 67 
+ 1899      65 5F 63 61 
+ 1899      70 74 75 72 
+ 1900                 		.ascii "cLen\000"
+ 1901 0365 70 69 6F 5F 	.LASF65:
+ 1901      69 32 63 5F 
+ 1901      70 75 6C 6C 
+ 1901      5F 6D 6F 64 
+ 1901      65 5F 77 65 
+ 1902                 		.ascii "app_panic_read_tx_pwr_level\000"
+ 1903 0375 70 69 6F 5F 	.LASF95:
+ 1903      6D 6F 64 65 
+ 1903      5F 73 74 72 
+ 1903      6F 6E 67 5F 
+ 1903      70 75 6C 6C 
+ 1904                 		.ascii "cData\000"
+ 1905 0381 43 3A 5C 55 	.LASF36:
+ 1905      73 65 72 73 
+ 1905      5C 62 65 6E 
+ 1905      74 72 5F 30 
+ 1905      30 30 5C 44 
+ 1906                 		.ascii "pio_mode_weak_pull_down\000"
+ 1907 0396 63 4C 65 6E 	.LASF47:
+ 1907      00 
+ 1908                 		.ascii "pio_i2c_pull_mode_weak_sticky\000"
+ 1909 0399 61 70 70 5F 	.LASF70:
+ 1909      70 61 6E 69 
+ 1909      63 5F 72 65 
+ 1909      61 64 5F 74 
+ 1909      78 5F 70 77 
+ 1910                 		.ascii "app_panic_unexpected_beep_type\000"
+ 1911 03a7 63 44 61 74 	.LASF26:
+ 1911      61 00 
+ 1912                 		.ascii "pio_mode_pio_control_txd\000"
+ 1913 03aa 70 69 6F 5F 	.LASF81:
+ 1913      6D 6F 64 65 
+ 1913      5F 77 65 61 
+ 1913      6B 5F 70 75 
+ 1913      6C 6C 5F 64 
+ 1914                 		.ascii "APP_HW_DATA_T\000"
+ 1915 03b6 70 69 6F 5F 	.LASF52:
+ 1915      69 32 63 5F 
+ 1915      70 75 6C 6C 
+ 1915      5F 6D 6F 64 
+ 1915      65 5F 77 65 
+ 1916                 		.ascii "pio_event_mode_both\000"
+ 1917 03c5 61 70 70 5F 	.LASF21:
+ 1917      70 61 6E 69 
+ 1917      63 5F 75 6E 
+ 1917      65 78 70 65 
+ 1917      63 74 65 64 
+ 1918                 		.ascii "pio_mode_uart\000"
+ 1919 03d4 70 69 6F 5F 	.LASF66:
+ 1919      6D 6F 64 65 
+ 1919      5F 70 69 6F 
+ 1919      5F 63 6F 6E 
+ 1919      74 72 6F 6C 
+ 1920                 		.ascii "app_panic_delete_whitelist\000"
+ 1921 03e1 41 50 50 5F 		.ident	"GCC: (GNU) 4.3.4 CSR version 22 for xap [1468380]"
+ 1921      48 57 5F 44 
+ 1921      41 54 41 5F 
+ 1921      54 00 
+ 1922                 	...
